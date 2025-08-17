@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r32 -->
+<!-- internal version: r33 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -62,7 +62,6 @@ input[type="number"], input[type="text"]{
 input[type="range"]{
   appearance:none; width:100%; max-width:100%;
   height:28px; background:transparent; border:0; outline:none;
-  touch-action:auto; -webkit-user-select:none; user-select:none;
 }
 input[type="range"]::-webkit-slider-runnable-track{ height:8px; border-radius:999px; background:var(--line); }
 input[type="range"]::-moz-range-track{ height:8px; border-radius:999px; background:var(--line); }
@@ -191,7 +190,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   let revealed=false, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // ガイド（チャレンジ時に挿入）
+  // ガイド（チャレンジ時）
   const guideFixed=document.createElement('div'); guideFixed.className='guide';
   guideFixed.textContent='① まずは固定費を設定しましょう';
   const guideCMR=document.createElement('div'); guideCMR.className='guide';
@@ -237,17 +236,16 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.closePath(); ctx.fill();
   }
   function dblArrowV(x,yTop,yBot,c){
-    // 両向き矢印（縦）
     ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
-    // 上向き
+    // 上向き頭
     ctx.beginPath();
     ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
-    // 下向き
+    // 下向き頭
     ctx.beginPath();
     ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
@@ -257,7 +255,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   function draw(mt){
     const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
-    const hide=toggle?.checked && !revealedByPlay; // チャレンジON & まだプレイ前
+    const hide=toggle?.checked && !revealedByPlay;
 
     ctx.clearRect(0,0,dims.W,dims.H);
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H);
@@ -276,7 +274,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     ctx.setLineDash([]);
 
-    // ハードル（固定費）矩形
+    // 固定費：矩形（薄い同系色）
     const BR=brand();
     const barL=dims.W/2-200, barW=400;
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
@@ -285,11 +283,9 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL, hY, barW, hHgt);
     ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-8);
 
-    // 矢印のX（近接）
+    // 売上のガイド点線＋ラベル
     const xSalesArrow = dims.W - dims.MARGIN - 18;
     const xCMArrow    = xSalesArrow - 28;
-
-    // 売上ラベル＋ガイド点線
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
     ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
     ctx.beginPath(); ctx.moveTo(dims.MARGIN, sY); ctx.lineTo(xSalesArrow-2, sY); ctx.stroke(); ctx.restore();
@@ -304,7 +300,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, BR);
 
-    // 限界利益
+    // 限界利益（ガイド点線／ラベル）
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -327,10 +323,11 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.fillText('限界利益率 ' + mt.cmrPct.toFixed(1) + '%', xMid, dims.H-10);
     ctx.textAlign='start';
 
-    // 待機ボール
+    // 待機ボール（売上高の高さ）
+    const rBall=9;
     if(!playing){
-      const r=9, y0=dims.GROUND_Y - sH;
-      ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y0,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke();
+      const y0=dims.GROUND_Y - sH;
+      ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y0,rBall,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke();
     }
 
     // 残像（apex）
@@ -339,21 +336,22 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // ★ プレイ後：固定費と限界利益の差を両向き矢印＋ラベルで表示
+    // ★ プレイ後：両向き矢印＋「黒字／赤字」を“ボールのすぐ右側”に表示
     if(revealedByPlay){
       const yTop = Math.min(bY, hY), yBot = Math.max(bY, hY);
-      const xGap = xCMArrow + 12; // 右側の近い位置
+      // 矢印のXはボール中心の少し右（右端に当たらないようクランプ）
+      const xNearBall = Math.min(dims.W - dims.MARGIN - 24, (dims.W/2) + rBall + 10);
       const isProfit = (mt.cm - mt.fixed) >= 0;
-      const color = isProfit ? BR : getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#b91c1c';
-      dblArrowV(xGap, yTop, yBot, color);
+      const color = isProfit ? BR : (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#b91c1c');
+      dblArrowV(xNearBall, yTop, yBot, color);
 
-      // ラベルを矢印の右に配置（はみ出しを抑止）
+      // ラベルは矢印のさらに右、はみ出し防止
       const txt = isProfit ? '黒字' : '赤字';
       ctx.save();
       ctx.fillStyle = color; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       ctx.textBaseline='middle';
       const wlbl = ctx.measureText(txt).width;
-      const xLbl = Math.min(dims.W - 6 - wlbl, xGap + 10);
+      const xLbl = Math.min(dims.W - 6 - wlbl, xNearBall + 10);
       const yLbl = (yTop + yBot) / 2;
       ctx.fillText(txt, xLbl, yLbl);
       ctx.restore();
@@ -426,7 +424,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       }else if(bounced){
         if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
         if(vy>0 && y>=ground){
-          revealedByPlay=true; // ★ これで両向き矢印＆ラベルが描画される
+          revealedByPlay=true; // ← ここで差分矢印＆ラベルが表示される
           redrawOnly(); ball();
           const p=mt.cm - mt.fixed;
           if(p>0){
