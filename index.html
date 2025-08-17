@@ -12,22 +12,22 @@
 }
 *{box-sizing:border-box}
 html,body{
-  margin:0; min-height:100%; width:100%;
-  -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
-  background:#fff; color:var(--ink);
+  margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+  background:#fff;color:var(--ink);
   font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,
         "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
 }
-.page{min-height:100%; padding:16px}
-.stack{max-width:1120px; margin:0 auto}
-.grid-main{display:grid; gap:16px; grid-template-columns:1fr}
-@media (min-width:960px){ .grid-main{grid-template-columns:1.1fr 0.9fr} } /* PCで2カラム、スマホは1カラム */
+.page{min-height:100%;padding:16px}
+.stack{max-width:1120px;margin:0 auto}
+.grid-main{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:960px){ .grid-main{grid-template-columns:1.1fr 0.9fr} } /* PCは2カラム、スマホは1カラム */
 
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px}
 h1{font-size:18px;margin:0 0 8px}
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:6px 8px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 
-/* キャンバスは常にカード幅いっぱい */
+/* キャンバス */
 canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#fff}
 
 /* ボタン */
@@ -58,7 +58,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 
-/* スマホ最適化（iPhone幅にきれいに収める） */
+/* スマホ最適化 */
 @media (max-width:480px){
   h1{font-size:17px}
   .card{padding:10px}
@@ -161,11 +161,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
-  // iPhone判定（iPadのデスクトップモード等を除外しつつ）
+  // --- 端末判定 ---
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
      || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-  // ===== Canvas & Math =====
+  // --- Canvas & Math ---
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
@@ -174,8 +174,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   function computeDims(){
     const r=cv.parentElement.getBoundingClientRect();
     const isSmall=r.width<430;
-    const w=Math.max(300,Math.min(640,Math.floor(r.width)));  // カード幅に追従（スマホは全幅）
-    const ratio=isSmall?0.60:0.66;                             // iPhone縦で少し低めに
+    const w=Math.max(300,Math.min(640,Math.floor(r.width)));       // 親幅にフィット
+    const ratio=isSmall?0.60:0.66;                                  // スマホは少し低め
     const h=Math.max(220,Math.round(w*ratio));
     dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
   }
@@ -189,8 +189,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
 
   // Inputs
-  const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
-            salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
+  const I={
+    sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
+    salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange')
+  };
   const playBtn=$('play'), resetBtn=$('reset'), resultEl=$('result'), labelTop=$('labelTop');
   const mSales=$('mSales'), mCMR=$('mCMR'), mCM=$('mCM'), mBEP=$('mBEP'), mProfit=$('mProfit');
 
@@ -199,7 +201,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
   const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
   const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
-  const targetShown=$('targetShown');
+  const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status');
 
   const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
 
@@ -211,34 +213,33 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     return {sales,cmrPct,cmr,cm,profit,bep,fixed};
   }
 
-  function arrow(x1,y1,x2,y2,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    const a=Math.atan2(y2-y1,x2-x1),h=8;
-    ctx.beginPath(); ctx.moveTo(x2,y2);
-    ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
-    ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
-    ctx.closePath(); ctx.fill();
-  }
+  function arrow(x1,y1,x2,y2,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); const a=Math.atan2(y2-y1,x2-x1),h=8; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.closePath(); ctx.fill(); }
 
-  // 固定費描画：スマホ＝帯（ゼロ〜固定費まで塗りつぶし全幅）、PC＝左軸ラベルと被らない狭め矩形
+  // 固定費の描画：スマホ＝帯（塗り）、PC＝矩形（左右を少し狭める）
   function drawFixed(mt,maxV){
     const BR=brand();
-    const baseL=dims.MARGIN, baseW=dims.W-2*dims.MARGIN;      // グラフ有効幅
-    const hH=sy(mt.fixed,maxV), topY=dims.GROUND_Y-hH, fillH=Math.max(0,dims.GROUND_Y-topY);
+    // グラフ有効幅
+    const barL_base=dims.MARGIN, barR_base=dims.W-dims.MARGIN;
+    const barW_base=barR_base-barL_base;
 
+    // PCは左右に余白を追加（左目盛と重ならないように）
+    const sidePadPC=18; // 左右18pxずつ狭める
+    const barL_pc=barL_base+sidePadPC, barR_pc=barR_base-sidePadPC, barW_pc=barR_pc-barL_pc;
+
+    const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
     if(IS_IOS_MOBILE){
-      // 帯：左右はグラフと同幅、ゼロから固定費までを塗る
+      // 帯：幅はグラフと同じ。塗りのみで上下に伸縮
+      const hHgt=Math.max(0,dims.GROUND_Y-hY);
       ctx.fillStyle='rgba(87,136,153,0.20)';
-      ctx.fillRect(baseL, topY, baseW, fillH);
+      ctx.fillRect(barL_base, hY, barW_base, hHgt);
       ctx.fillStyle=BR;
-      ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,baseL), topY-8);
+      ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL_base), hY-8);
     }else{
-      // 矩形：左軸数値と被らないように少し内側に寄せる
-      const padLeft=24;                          // ← ここで幅を狭める
-      const l=baseL+padLeft, w=dims.W - l - dims.MARGIN;
-      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(l, topY, w, fillH);
-      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(l, topY, w, fillH);
-      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), l, topY-8);
+      // 矩形：少し狭くして左軸と被らない
+      const hHgt=Math.max(0,dims.GROUND_Y-hY);
+      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL_pc,hY,barW_pc,hHgt);
+      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL_pc,hY,barW_pc,hHgt);
+      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL_pc), hY-8);
     }
   }
 
@@ -263,10 +264,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     }
     ctx.setLineDash([]);
 
-    // 固定費（端末で出し分け）
+    // 固定費
     drawFixed(mt,maxV);
 
-    // 売上（右寄せラベル＋下向き矢印）
+    // 売上
     const xSalesArrow=dims.W-dims.MARGIN-18;
     const xCMArrow=xSalesArrow-28;
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
@@ -277,7 +278,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益（上向き矢印はプレイ後のみ）
+    // 限界利益
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -321,21 +322,17 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+rBall+10);
       const p=mt.cm-mt.fixed; const isProfit=p>0, isLoss=p<0;
       const color=isProfit?brand():isLoss?getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c':'#334155';
-      // 縦の両向き矢印
       ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
       ctx.beginPath(); ctx.moveTo(xNearBall,yTop); ctx.lineTo(xNearBall,yBot); ctx.stroke();
       const h=8;
-      // 上矢印
       ctx.beginPath(); ctx.moveTo(xNearBall,yTop);
       ctx.lineTo(xNearBall-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
       ctx.lineTo(xNearBall+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
       ctx.closePath(); ctx.fill();
-      // 下矢印
       ctx.beginPath(); ctx.moveTo(xNearBall,yBot);
       ctx.lineTo(xNearBall-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
       ctx.lineTo(xNearBall+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
       ctx.closePath(); ctx.fill();
-      // ラベル（黒字/赤字＋金額）
       let txt=isProfit?('黒字 '+jpy(p)):isLoss?('赤字 '+jpy(-p)):'±0';
       ctx.save(); ctx.fillStyle=color; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
       const wlbl=ctx.measureText(txt).width;
@@ -354,38 +351,29 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); $('labelTop').textContent='限界利益'; }
 
-  // ===== 並び替え =====
+  // --- 並び替え（チャレンジ） ---
   function applyOrderChallenge(){
     // チェック欄をカラム最上部へ
     controls.insertBefore(challengeBox, controls.firstChild);
-
-    // ① 固定費（ガイド→入力）
-    controls.append(guideFixed); guideFixed.style.display='block';
-    controls.append(paramFixed);
-
-    // ② CMR（ガイド→入力）
-    controls.append(guideCMR); guideCMR.style.display='block';
-    controls.append(paramCMR);
-
-    // ③ 売上（ガイド→入力）
-    controls.append(guideSales); guideSales.style.display='block';
-    controls.append(paramSales);
-
-    // 最後：答え合わせ・リセット → 結果
+    // ① 固定費
+    controls.append(guideFixed); guideFixed.style.display='block'; controls.append(paramFixed);
+    // ② CMR
+    controls.append(guideCMR); guideCMR.style.display='block'; controls.append(paramCMR);
+    // ③ 売上
+    controls.append(guideSales); guideSales.style.display='block'; controls.append(paramSales);
+    // 最後：答え合わせ
     controls.append(checkRow); checkRow.style.display='flex';
-    controls.append(checkResult); // 押下後に表示
+    controls.append(checkResult);
     metrics.style.display='none';
   }
   function applyOrderNormal(){
     guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
-    // 通常：売上→CMR→固定費→チャレンジ
     controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
     controls.append(checkRow); checkRow.style.display='none';
     controls.append(checkResult); checkResult.style.display='none';
     metrics.style.display='grid';
   }
 
-  // ===== チャレンジの答え合わせ =====
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
@@ -399,7 +387,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     if(!playing) playOnce();
   }
 
-  // ===== 統一リセット =====
   function resetAll(){
     revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
@@ -409,7 +396,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     redrawOnly();
   }
 
-  // ===== プレイ（バウンド） =====
   function playOnce(){
     if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
     const mt=calc();
@@ -439,17 +425,16 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     requestAnimationFrame(frame);
   }
 
-  // 入力連動
   function linkCurrency(textInput, range, hardMax=null){
     const toR=()=>{ const v=parseComma(textInput.value);
       if(hardMax && v>hardMax) range.max=hardMax; else if(v>Number(range.max)) range.max=v;
       range.value=String(v);
-      if(toggle.checked){ $('checkResult').style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
     };
     const toN=()=>{ const v=Number(range.value||0);
       textInput.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):'';
-      if(toggle.checked){ $('checkResult').style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
     };
     textInput.addEventListener('input',toR); textInput.addEventListener('change',toR); textInput.addEventListener('blur',toR);
@@ -457,10 +442,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function linkNumber(n,r){
     const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
-      if(toggle.checked){ $('checkResult').style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
     const toN=()=>{ n.value=r.value;
-      if(toggle.checked){ $('checkResult').style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
     n.addEventListener('input',toR); n.addEventListener('change',toR);
     r.addEventListener('input',toN); r.addEventListener('change',toN);
@@ -473,18 +458,18 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   // チャレンジ切替
   toggle.addEventListener('change', ()=>{
     if(toggle.checked){
-      applyOrderChallenge();   // カラム先頭にチェック欄 → ①→②→③ → 答え合わせ
+      applyOrderChallenge();   // カラム先頭にチェック → ①→②→③ → 答え合わせ
     }else{
-      applyOrderNormal();      // 通常順に戻す
+      applyOrderNormal();      // 通常順へ戻す
     }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
   });
 
   // ボタン
-  $('play').addEventListener('click', ()=>playOnce());
-  $('reset').addEventListener('click', resetAll);
-  $('reset2').addEventListener('click', resetAll);
-  $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
+  playBtn.addEventListener('click', ()=>playOnce());
+  resetBtn.addEventListener('click', resetAll);
+  reset2.addEventListener('click', resetAll);
+  checkBtn.addEventListener('click', ()=>doCheckAnswer());
 
   // レイアウト
   function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
