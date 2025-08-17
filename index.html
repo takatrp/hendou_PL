@@ -1,5 +1,9 @@
-<!DOCTYPE html>
-<!-- internal version: r30 -->
+# Create updated r31 implementing requested visual changes:
+# 1) remove small dots at arrow bases/tops
+# 2) extend short horizontal markers to dotted lines reaching left axis
+# 3) draw fixed cost as a rectangle from zero to fixed amount, filled with light brand color
+html = r"""<!DOCTYPE html>
+<!-- internal version: r31 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -67,7 +71,7 @@ input[type="range"]::-webkit-slider-runnable-track{ height:8px; border-radius:99
 input[type="range"]::-moz-range-track{ height:8px; border-radius:999px; background:var(--line); }
 input[type="range"]::-webkit-slider-thumb{
   appearance:none; width:20px; height:20px; border-radius:50%; background:var(--brand);
-  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px; /* つまみをバー中央に */
+  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px;
 }
 input[type="range"]::-moz-range-thumb{
   width:20px; height:20px; border-radius:50%; background:var(--brand);
@@ -86,7 +90,7 @@ button{appearance:none; border:0; border-radius:12px; padding:12px 16px; font-we
 canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12px; border:1px solid var(--line); background:#fff }
 .muted{color:#64748b; font-size:12px; margin-top:6px}
 .result{font-size:16px; font-weight:700; margin-top:4px}
-.result.ng{ color:#b91c1c; } /* 赤字時だけ赤色 */
+.result.ng{ color:#b91c1c; }
 
 .metrics{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px}
 .m{background:#fafafa; border:1px solid var(--line); border-radius:12px; padding:10px}
@@ -94,7 +98,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 .m.em{outline:1px solid rgba(87,136,153,.35); background:rgba(87,136,153,.06)}
 .challenge{margin-top:0;border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
 .status{font-weight:700}
-/* ★ 太字に */
 .guide{color:#334155; font-size:14px; margin:2px 4px -2px; padding-left:2px; font-weight:700;}
 
 .footer{display:flex;justify-content:center;opacity:.95;margin:12px 0 2px;color:#334155;font-size:12px;text-align:center}
@@ -176,7 +179,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 (function(){
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
 
-  // ピンチ（2本指）だけ抑止
   document.addEventListener('touchmove',(e)=>{ if(e.touches && e.touches.length>1){ e.preventDefault(); } },{passive:false});
 
   const $=id=>document.getElementById(id);
@@ -192,7 +194,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   let revealed=false, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // ①/②ガイド（太字はCSS .guide で指定）
   const guideFixed=document.createElement('div'); guideFixed.className='guide';
   guideFixed.textContent='① まずは固定費を設定しましょう';
   const guideCMR=document.createElement('div'); guideCMR.className='guide';
@@ -237,11 +238,10 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
     ctx.closePath(); ctx.fill();
   }
-  const dot=(x,y,c)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill(); };
 
   function draw(mt){
     const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
-    const hide=toggle?.checked && !revealedByPlay; // チャレンジON & まだプレイ前
+    const hide=toggle?.checked && !revealedByPlay;
 
     ctx.clearRect(0,0,dims.W,dims.H);
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H);
@@ -250,7 +250,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り
+    // 目盛り（点線）
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.fillStyle='#475569';
     for(let i=0;i<=5;i++){
@@ -260,52 +260,57 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     ctx.setLineDash([]);
 
-    // ハードル（固定費）
+    // ハードル（固定費）矩形
     const BR=brand();
+    const barL=dims.W/2-200, barW=400;
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
-    ctx.strokeStyle=BR; ctx.lineWidth=6;
-    ctx.beginPath(); ctx.moveTo(dims.W/2-200,hY); ctx.lineTo(dims.W/2+200,hY); ctx.stroke();
-    ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,dims.W/2-200), hY-8);
+    const hHgt = Math.max(0, dims.GROUND_Y - hY);
+    ctx.fillStyle='rgba(87,136,153,0.15)';
+    ctx.fillRect(barL, hY, barW, hHgt);
+    ctx.strokeStyle=BR; ctx.lineWidth=2;
+    ctx.strokeRect(barL, hY, barW, hHgt);
+    ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-8);
 
     // 矢印のX（近接）
     const xSalesArrow = dims.W - dims.MARGIN - 18;
     const xCMArrow    = xSalesArrow - 28;
 
-    // 売上ラベル
+    // 売上ラベル・点線（左軸まで）
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
     ctx.strokeStyle='#475569'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(dims.W-dims.MARGIN,sY); ctx.lineTo(dims.W-dims.MARGIN+12,sY); ctx.stroke();
+    // 売上の点線（左軸から矢印直前まで）
+    ctx.save(); ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(dims.MARGIN, sY); ctx.lineTo(xSalesArrow-2, sY); ctx.stroke(); ctx.restore();
+    // 売上ラベル：チャレンジ時は ??? を右寄せ、通常は右壁寄せ
     const tSales='売上高: '+(hide?'???':jpy(mt.sales));
     const ySales=sY - 6;
-
     if(hide){
-      // チャレンジON：矢印の少し左に右揃え
       const xLabelRight = xCMArrow - 6;
-      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right';
-      ctx.fillText(tSales, xLabelRight, ySales);
-      ctx.fillStyle='#0ea5e9';
-      ctx.fillText('限界利益: ???', xLabelRight, ySales + 16);
-      ctx.restore();
+      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xLabelRight, ySales); ctx.restore();
     }else{
-      // 通常：右壁寄せ
       const xRightWall = dims.W - 6;
-      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right';
-      ctx.fillText(tSales, xRightWall, ySales);
-      ctx.restore();
+      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xRightWall, ySales); ctx.restore();
     }
-    arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, BR); dot(xSalesArrow, dims.GROUND_Y-3, BR);
+    // 売上の縦矢印（ベースの丸は描かない）
+    arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, BR);
 
-    // 限界利益（チャレンジON中は矢印も隠す）
+    // 限界利益（チャレンジON中は非表示）
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
+      // 限界利益の点線（左軸から矢印直前まで）
+      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9'; ctx.beginPath(); ctx.moveTo(dims.MARGIN, bY); ctx.lineTo(xCMArrow-2, bY); ctx.stroke(); ctx.restore();
+
       ctx.fillStyle='#0ea5e9';
       const tCM='限界利益: '+jpy(b);
-      ctx.strokeStyle='#0ea5e9'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(xCMArrow-12,bY); ctx.lineTo(xCMArrow-0,bY); ctx.stroke();
+      // ラベルは矢印の少し右
       const w=ctx.measureText(tCM).width;
       const xText = Math.min(dims.W-dims.MARGIN-w, xCMArrow+8);
       ctx.fillText(tCM, xText, bY-6);
-      arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, BR); dot(xCMArrow, dims.GROUND_Y-3, BR);
+      // 矢印（ベースの丸は描かない）
+      arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, BR);
+    }else{
+      // チャレンジ時は「限界利益: ???」を売上ラベルの下に右寄せ表示のみ
+      const xLabelRight = xCMArrow - 6;
+      ctx.save(); ctx.fillStyle='#0ea5e9'; ctx.textAlign='right'; ctx.fillText('限界利益: ???', xLabelRight, ySales + 16); ctx.restore();
     }
 
     // 限界利益率（下部中央）
@@ -366,7 +371,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   function redrawOnly(){ const mt=calc(); renderChallenge(mt); draw(mt); labelTop.textContent='限界利益'; }
 
-  // 並び替え＆ガイド
   function reorderParameters(isChallenge){
     if(isChallenge){
       controls.append(paramFixed, paramCMR, paramSales);
@@ -379,7 +383,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
   }
 
-  // 実行（ボタン）
   function playOnce(){
     if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
     const mt=calc();
@@ -395,14 +398,14 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       }else if(bounced){
         if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
         if(vy>0 && y>=ground){
-          revealedByPlay=true; // プレイ後に開示
+          revealedByPlay=true;
           redrawOnly(); ball();
           const p=mt.cm - mt.fixed;
           if(p>0){
             resultEl.classList.remove('ng');
             resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`;
           } else if(p<0){
-            resultEl.classList.add('ng'); // ← 赤字時は赤色
+            resultEl.classList.add('ng');
             resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, mt.fixed - mt.cm))} の限界利益が必要`;
           } else {
             resultEl.classList.remove('ng');
@@ -416,7 +419,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     requestAnimationFrame(frame);
   }
 
-  // 入出力リンク
   function linkCurrency(textInput, range, {maxGrow=true, hardMax=null}={}){
     const toR=()=>{ const v=Number(String(textInput.value??'').replace(/[^\d.-]/g,'')||0);
       if(maxGrow){ const m=Number(range.max||0); if(v>m){ range.max = hardMax?Math.min(v,hardMax):v; } }
@@ -446,11 +448,10 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   linkNumber(I.cmr,I.cmrRange,{maxGrow:false});
   linkCurrency(I.fixed,I.fixedRange,{hardMax:2000000});
 
-  // イベント
   playBtn.addEventListener('click', playOnce);
   resetBtn.addEventListener('click', ()=>{
-    revealed=false; revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent='';
-    resultEl.classList.remove('ng');
+    revealed=false; revealedByPlay=false; apexMarkerY=null; playing=false;
+    resultEl.classList.remove('ng'); resultEl.textContent='';
     I.sales.value=(1300000).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(1000000).toLocaleString('ja-JP');
     I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
     redrawOnly();
@@ -464,7 +465,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   });
   revealBtn.addEventListener('click', ()=>{ revealed=true; redrawOnly(); });
 
-  // レイアウト
   function layoutAndRedraw(){ computeDims(); setupCanvas(); redrawOnly(); }
   const parent=cv.parentElement||document.body;
   if('ResizeObserver' in window){ const ro=new ResizeObserver(()=> layoutAndRedraw()); ro.observe(parent); }
@@ -473,7 +473,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     window.addEventListener(ev, ()=> requestAnimationFrame(layoutAndRedraw));
   });
 
-  // 初期
   (function initFormat(){
     I.sales.value=(1300000).toLocaleString('ja-JP');
     I.fixed.value=(1000000).toLocaleString('ja-JP');
@@ -485,3 +484,8 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 </script>
 </body>
 </html>
+"""
+path = "/mnt/data/ball-cvp-r31.html"
+with open(path, "w", encoding="utf-8") as f:
+    f.write(html)
+path
