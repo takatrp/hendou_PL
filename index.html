@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r47 -->
+<!-- internal version: r48 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -20,19 +20,20 @@ html,body{
 .stack{max-width:1120px;width:100%;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
 @media (min-width:960px){
-  .grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)} /* PCで必ず2カラム */
+  .grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}
 }
 @media (max-width:959.9px) and (orientation:landscape){
-  .grid-main{grid-template-columns:1fr 1fr} /* スマホ横は2カラム */
+  .grid-main{grid-template-columns:1fr 1fr}
 }
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
 h1{font-size:18px;margin:0 0 8px}
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:6px 8px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 
-/* キャンバス：親幅＆ビューポートにフィット、左右余白は左右対称 */
+/* キャンバス：サイズはJSでちょい狭めに設定＆中央寄せ */
 canvas{
-  display:block;width:100%;max-width:calc(100vw - 32px); /* 16px×2（.page padding） */
-  height:auto;border:1px solid var(--line);border-radius:12px;background:#fff
+  display:block; height:auto;
+  border:1px solid var(--line); border-radius:12px; background:#fff;
+  margin:0 auto; max-width:calc(100vw - 32px); /* 安全装置（JSが効かない場合） */
 }
 
 /* ボタン */
@@ -138,36 +139,40 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r47</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r48</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r47';
+  const VERSION='r48';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
-  // 端末判定
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
      || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-  // Canvas
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
   const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
 
+  // ★ モバイルでカード背景に収まるよう、親幅より少しだけ狭くする（左右に背景が見える）
   function computeDims(){
     const parentW = cv.parentElement.clientWidth || window.innerWidth;
-    // 左右16pxパディングを考慮し、スマホ縦は確実にフィット
-    const maxFit = Math.max(280, Math.min(parentW, window.innerWidth - 32));
-    const isMobile = window.innerWidth < 820;
-    const isLandscape = window.innerWidth > window.innerHeight;
+    const vpW = window.innerWidth;
+    const isMobile = vpW < 820;
+    const isLandscape = vpW > window.innerHeight;
+
+    const inset = isMobile ? 12 : 8;         // 左右の“余白”をカード内に確保
+    const avail = Math.min(parentW, vpW - 32); // .page の左右 16px を考慮
+    const w = Math.max(280, avail - inset*2); // 背景が見える程度にやや狭く
     const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
-    const h = Math.max(220, Math.round(maxFit*ratio));
-    dims.W=maxFit; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
+    const h = Math.max(220, Math.round(w*ratio));
+
+    dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
+    cv.style.marginLeft=cv.style.marginRight=inset+'px';
   }
   function setupCanvas(){
     dpr=Math.max(1,window.devicePixelRatio||1);
@@ -178,7 +183,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
   const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
 
-  // Inputs
   const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
             salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
   const resultEl=$('result');
@@ -209,20 +213,20 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     ctx.closePath(); ctx.fill();
   }
 
-  // 固定費描画：モバイルは帯（左端=軸まで上書き）、PCは細い矩形で限界利益矢印の左で止める
+  // ★ 固定費：モバイルは“帯”で左の軸（dims.MARGIN）まで確実に塗る
   function drawFixed(mt,maxV,xCMArrow){
     const BR=brand();
     const barL=dims.MARGIN, barR=dims.W-dims.MARGIN, barW=barR-barL;
     const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
 
     if(IS_IOS_MOBILE){
-      const startX=Math.max(0, barL-2);                 // 軸まで（少しオーバーラップ）
-      const width = (barR - startX);
+      const startX = Math.floor(dims.MARGIN);       // 軸の位置から塗り始める（隙間ゼロ）
+      const width  = (barR - startX);
       ctx.fillStyle='rgba(87,136,153,0.22)';
-      ctx.fillRect(startX, y, width, hgt);              // 帯＝塗りのみ
+      ctx.fillRect(startX, y, width, hgt);
       ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,startX), y-8);
     }else{
-      const L = barL+40;                                 // さらに細く
+      const L = barL+40;                             // PCはさらに細い矩形
       const Rlimit = xCMArrow? (xCMArrow-30) : (barR-40);
       const R = Math.max(L+24, Math.min(barR-40, Rlimit));
       const W = R-L;
@@ -243,7 +247,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り（左右余白対称）
+    // 目盛り
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.fillStyle='#475569';
     for(let i=0;i<=5;i++){
@@ -253,14 +257,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     }
     ctx.setLineDash([]);
 
-    // X座標（売上・限界利益）
+    // X座標
     const xSalesArrow=dims.W-dims.MARGIN-18;
     const xCMArrow=xSalesArrow-28;
 
-    // 固定費
+    // 固定費（先に帯/矩形）
     drawFixed(mt,maxV,xCMArrow);
 
-    // 売上（下向き矢印）
+    // 売上
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
     ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
     ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
@@ -269,7 +273,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益（上向き矢印）
+    // 限界利益
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -305,7 +309,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // プレイ後：固定費と限界利益の差（両向き矢印＋ラベル）
+    // プレイ後：差の可視化
     if(revealedByPlay){
       const bH2=sy(mt.cm,maxV), bY2=dims.GROUND_Y-bH2;
       const hH2=sy(mt.fixed,maxV), hY2=dims.GROUND_Y-hH2;
@@ -455,7 +459,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   $('reset2').addEventListener('click', resetAll);
   $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
 
-  // レイアウト（PC/スマホとも左右余白一致＆2カラム維持）
+  // レイアウト
   function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
   if('ResizeObserver' in window){ new ResizeObserver(layout).observe(cv.parentElement); }
   ['load','pageshow','orientationchange','resize'].forEach(ev=>addEventListener(ev,()=>requestAnimationFrame(layout)));
