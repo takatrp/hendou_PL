@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r34 -->
+<!-- internal version: r35 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -238,15 +238,11 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
-    // 上（▲）
-    ctx.beginPath();
-    ctx.moveTo(x,yTop);
+    ctx.beginPath(); ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
-    // 下（▼）
-    ctx.beginPath();
-    ctx.moveTo(x,yBot);
+    ctx.beginPath(); ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
@@ -273,9 +269,11 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     ctx.setLineDash([]);
 
-    // 固定費（ハードル）矩形
+    // 固定費（ハードル）矩形 ＊幅を端末幅に応じて少し狭く
     const BR=brand();
-    const barL=dims.W/2-200, barW=400;
+    const pad = Math.max(12, Math.round(dims.W * 0.08));         // 左右のゆとり
+    const barW = Math.max(160, Math.min(400, dims.W - pad*2));   // 上限400px, 画面に収まる幅
+    const barL = Math.round((dims.W - barW)/2);                   // 中央寄せ
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
     const hHgt = Math.max(0, dims.GROUND_Y - hY);
     ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL, hY, barW, hHgt);
@@ -335,7 +333,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // ★ プレイ後：両向き矢印＋「黒字/赤字 金額」をボール右に
+    // プレイ後：両向き矢印＋「黒字/赤字 金額」をボール右に
     if(revealedByPlay){
       const yTop = Math.min(bY, hY), yBot = Math.max(bY, hY);
       const xNearBall = Math.min(dims.W - dims.MARGIN - 24, (dims.W/2) + rBall + 10);
@@ -344,7 +342,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       const color = isProfit ? BR : (isLoss ? (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#b91c1c') : '#334155');
       dblArrowV(xNearBall, yTop, yBot, color);
 
-      // ラベル
       let txt = '';
       if(isProfit) txt = '黒字 ' + jpy(p);
       else if(isLoss) txt = '赤字 ' + jpy(-p);
@@ -426,7 +423,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       }else if(bounced){
         if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
         if(vy>0 && y>=ground){
-          revealedByPlay=true; // ← ここで差分ラベルを表示可能に
+          revealedByPlay=true;
           redrawOnly(); ball();
           const p=mt.cm - mt.fixed;
           if(p>0){
