@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r40 -->
+<!-- internal version: r41 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -10,7 +10,8 @@
   --muted:#64748b; --line:#e5e7eb; --line-dark:#cbd5e1; --danger:#b91c1c;}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:hidden;background:#fff;color:var(--ink);
-  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;}
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;}
 .page{position:fixed;inset:0;padding:16px;overflow:auto}
 .stack{max-width:1120px;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
@@ -47,7 +48,7 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
   <div class="stack">
     <div class="grid-main">
       <!-- 左：グラフ -->
-      <div class="card">
+      <div class="card" id="cardGraph">
         <h1>ボールで学ぶ変動損益計算書</h1>
         <div class="note-top">
           ・固定費：越えるべきハードルの高さ<br>
@@ -55,7 +56,7 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
           ・限界利益：バウンドした頂点<br>
           バウンド頂点（<span id="labelTop">限界利益</span>）がハードル（固定費）を越えれば黒字です。
         </div>
-        <canvas id="cv" width="860" height="420"></canvas>
+        <canvas id="cv" width="860" height="420" aria-label="学習キャンバス"></canvas>
         <div class="btns">
           <button id="play" class="primary" type="button">黒字かどうか確認</button>
           <button id="reset" class="secondary" type="button">リセット</button>
@@ -66,6 +67,7 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
       <!-- 右：パラメータ -->
       <div class="card" id="cardCtrl">
         <div class="controls" id="controls">
+
           <!-- デフォルト順：売上→CMR→固定費 -->
           <label class="f" id="paramSales">
             <div class="row1"><span class="ttl">売上高（S）</span><input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,300,000"></div>
@@ -82,24 +84,26 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
           </label>
 
-          <!-- チャレンジは固定費の直下に常設 -->
+          <!-- チャレンジ：固定費の直下に常設（チェックONで順序を組み替え） -->
           <div class="challenge" id="challengeBox">
             <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
-            <div class="row" id="checkRow" style="display:none">
-              <button id="checkBtn" class="primary" type="button">答え合わせ</button>
-              <button id="reset2" class="secondary" type="button">リセット</button>
-            </div>
-            <div id="checkResult" style="display:none; margin-top:6px">
-              <div>必要売上高：<span id="targetShown">—</span></div>
-              <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status" class="status">—</span></div>
-              <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
-            </div>
           </div>
 
-          <!-- ガイド（ON時に各入力の直前へ差し込む） -->
+          <!-- ガイド（ON時に所定の位置へ移動） -->
           <div id="guideFixed" class="guide" style="display:none;">① 固定費はいくらですか？</div>
           <div id="guideCMR" class="guide" style="display:none;">② 限界利益率は何％ですか？</div>
           <div id="guideSales" class="guide" style="display:none;">③ 必要売上高を考えてみましょう</div>
+
+          <!-- 答え合わせ＆結果（ON時、最後に配置） -->
+          <div class="challenge row" id="checkRow" style="display:none;">
+            <button id="checkBtn" class="primary" type="button">答え合わせ</button>
+            <button id="reset2" class="secondary" type="button">リセット</button>
+          </div>
+          <div id="checkResult" style="display:none; margin-top:6px">
+            <div>必要売上高：<span id="targetShown">—</span></div>
+            <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status" class="status">—</span></div>
+            <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
+          </div>
 
           <div id="warnCMR0" class="muted" style="display:none;color:#8b5e00">※ 限界利益率が0%のため、どれだけ売上高があっても黒字になりません。</div>
         </div>
@@ -107,9 +111,9 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
         <div class="metrics" id="metrics">
           <div class="m"><div class="k">売上高 (S)</div><div id="mSales" class="v">-</div></div>
           <div class="m"><div class="k">限界利益率 (CMR)</div><div id="mCMR" class="v">-</div></div>
-          <div class="m"><div class="k">限界利益 (S×CMR)</div><div id="mCM" class="v">-</div></div>
+          <div class="m em"><div class="k">限界利益 (S×CMR)</div><div id="mCM" class="v">-</div></div>
           <div class="m"><div class="k">損益分岐点売上高 (FC÷CMR)</div><div id="mBEP" class="v">-</div></div>
-          <div class="m"><div class="k">経常利益 ≒ 限界利益−固定費</div><div id="mProfit" class="v">-</div></div>
+          <div class="m em"><div class="k">経常利益 ≒ 限界利益−固定費</div><div id="mProfit" class="v">-</div></div>
         </div>
       </div>
     </div>
@@ -122,25 +126,29 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
-  // --- Canvas & Drawing (省略せず前版の機能をすべて維持) ---
+  // ===== Canvas & math =====
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
   const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
-  function computeDims(){ const r=cv.parentElement.getBoundingClientRect(); const w=Math.max(300,Math.min(640,Math.floor(r.width))); const h=Math.max(240,Math.round(w*0.66)); dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;}
+
+  function computeDims(){ const r=cv.parentElement.getBoundingClientRect(); const w=Math.max(300,Math.min(640,Math.floor(r.width))); const h=Math.max(240,Math.round(w*0.66)); dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36; }
   function setupCanvas(){ dpr=Math.max(1,window.devicePixelRatio||1); cv.width=Math.round(dims.W*dpr); cv.height=Math.round(dims.H*dpr); cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px'; ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr); }
-  const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
+  const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
+  const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
+
   const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'), salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
-  const playBtn=$('play'), resetBtn=$('reset'), resultEl=$('result');
+  const playBtn=$('play'), resetBtn=$('reset'), resultEl=$('result'), labelTop=$('labelTop');
   const mSales=$('mSales'), mCMR=$('mCMR'), mCM=$('mCM'), mBEP=$('mBEP'), mProfit=$('mProfit');
-  const toggle=$('challengeToggle'), metrics=$('metrics'), labelTop=$('labelTop');
-  const controls=$('controls'); const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
+
+  const toggle=$('challengeToggle'), metrics=$('metrics');
+  const controls=$('controls'), challengeBox=$('challengeBox');
+  const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
   const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
   const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
   const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status');
 
-  const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
-  const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
+  const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
 
   function calc(){
     const sales=Math.max(0,parseComma(I.sales.value));
@@ -158,15 +166,17 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
     const hide=toggle.checked && !revealedByPlay;
 
     ctx.clearRect(0,0,dims.W,dims.H); ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H); ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
+
     // 目盛り
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.fillStyle='#475569';
     for(let i=0;i<=5;i++){ const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h; ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke(); ctx.fillText(jpy(val), 6, y-2); }
     ctx.setLineDash([]);
 
-    // 固定費：矩形（最大幅）
-    const BR=brand(); const barL=dims.MARGIN; const barW=dims.W-2*dims.MARGIN;
+    // 固定費：矩形（有効幅いっぱい）
+    const BR=brand(); const barL=dims.MARGIN, barW=dims.W-2*dims.MARGIN;
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH, hHgt=Math.max(0,dims.GROUND_Y-hY);
     ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL,hY,barW,hHgt);
     ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL,hY,barW,hHgt);
@@ -214,39 +224,43 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
   }
 
   function renderMetrics(mt){ mSales.textContent=jpy(mt.sales); mCMR.textContent=mt.cmrPct.toFixed(1)+'%'; mCM.textContent=jpy(mt.cm); mBEP.textContent=isFinite(mt.bep)?jpy(mt.bep):'—'; mProfit.textContent=jpy(mt.profit); $('warnCMR0').style.display=(mt.cmr<=0)?'block':'none'; }
-  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); $('labelTop').textContent='限界利益'; }
+  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); labelTop.textContent='限界利益'; }
 
-  // 並び替え：ON時 ①固定費→（チャレンジ枠）→②CMR→③売上高、かつ各ガイドをそれぞれの直前に
+  // ===== 並び替えロジック =====
   function applyOrderChallenge(){
-    // ① 固定費
-    controls.append(paramFixed);
+    // ① 固定費（ガイド→入力）
     controls.insertBefore(guideFixed, paramFixed); guideFixed.style.display='block';
-    // チャレンジ枠（固定費直下）
-    controls.append($('challengeBox'));
-    // ② CMR
-    controls.append(paramCMR);
+    // チェックボックスは固定費直下のまま（challengeBox を paramFixed の後へ維持）
+    controls.insertBefore(challengeBox, paramCMR); // 固定費の直下
+    // ② CMR（ガイド→入力）
     controls.insertBefore(guideCMR, paramCMR); guideCMR.style.display='block';
-    // ③ 売上
-    controls.append(paramSales);
-    controls.insertBefore(guideSales, paramSales); guideSales.style.display='block';
+    // ③ 売上（ガイド→入力）
+    controls.append(guideSales); controls.append(paramSales); guideSales.style.display='block';
+    // 最後：答え合わせ・リセット → 結果
+    controls.append(checkRow); checkRow.style.display='flex';
+    controls.append(checkResult); // 押下後に表示
+    // メトリクスは押下前は非表示
+    metrics.style.display='none';
   }
-  // 通常順へ復帰（売上→CMR→固定費、ガイド非表示）
   function applyOrderNormal(){
     guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
-    controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed);
-    controls.append($('challengeBox')); // 位置は固定費の直下に常設
+    // 元の順：売上→CMR→固定費→チャレンジ（ラベルのみ）
+    controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
+    // ボタンと結果はコントロール末尾にまとめておく（非表示）
+    controls.append(checkRow); controls.append(checkResult);
+    checkRow.style.display='none'; checkResult.style.display='none';
+    metrics.style.display='grid';
   }
 
-  // 「答え合わせ」：結果表示＋プレイ
+  // ===== 交互作用 =====
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
-    targetShown.textContent = isFinite(target)? jpy(target) : '—';
+    $('targetShown').textContent = isFinite(target)? jpy(target) : '—';
     const diff = mt.sales - target;
-    diffEl.textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
+    $('diff').textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
     const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
-    const st=(isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
-    statusEl.textContent = isFinite(pct)? st : '—';
+    $('status').textContent = (isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
     checkResult.style.display='block';
     metrics.style.display='grid';
     if(!playing) playOnce();
@@ -312,22 +326,21 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
   // チャレンジ切替
   toggle.addEventListener('change', ()=>{
     if(toggle.checked){
+      // 並び：①固定費→②CMR→③売上→答え合わせ
+      // 固定費の直下にチャレンジ（ラベル）
+      controls.insertBefore(challengeBox, paramCMR);
       applyOrderChallenge();
-      checkRow.style.display='flex'; metrics.style.display='none';
-      checkResult.style.display='none';
     }else{
       applyOrderNormal();
-      checkRow.style.display='none'; checkResult.style.display='none';
-      metrics.style.display='grid';
     }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
   });
 
   // ボタン
-  $('play').addEventListener('click', ()=>playOnce());
-  $('reset').addEventListener('click', resetAll);
-  $('reset2').addEventListener('click', resetAll);
-  $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
+  playBtn.addEventListener('click', ()=>playOnce());
+  resetBtn.addEventListener('click', resetAll);
+  reset2.addEventListener('click', resetAll);
+  checkBtn.addEventListener('click', ()=>doCheckAnswer());
 
   // レイアウト
   function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
@@ -339,7 +352,8 @@ canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
     I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.cmr.value=String(DEFAULTS.cmr);
-    applyOrderNormal(); // 初期は通常順
+    // 初期は通常順
+    applyOrderNormal();
     layout();
   })();
 })();
