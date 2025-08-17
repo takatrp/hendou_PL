@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r45 -->
+<!-- internal version: r46 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -12,32 +12,25 @@
 }
 *{box-sizing:border-box}
 html,body{
-  margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;
-  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+  margin:0;height:100%;width:100%;
+  position:fixed; inset:0; overflow:auto; overflow-x:hidden; /* 横はみ出し防止 */
+  -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
   background:#fff;color:var(--ink);
   font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,
-        "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
+       "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
 }
 .page{min-height:100%;padding:16px}
-.stack{max-width:1120px;margin:0 auto}
-
-/* レイアウト：デフォルト1カラム */
+.stack{max-width:1120px;width:100%;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
-/* PCは2カラム */
-@media (min-width:960px){
-  .grid-main{grid-template-columns:1.1fr 0.9fr}
-}
-/* スマホ横向きは小さくても2カラムに */
-@media (max-width:959.9px) and (orientation:landscape){
-  .grid-main{grid-template-columns:1fr 1fr}
-}
+@media (min-width:960px){ .grid-main{grid-template-columns:1.1fr 0.9fr} }           /* PCは2カラム */
+@media (max-width:959.9px) and (orientation:landscape){ .grid-main{grid-template-columns:1fr 1fr} } /* スマホ横向きは2カラム */
 
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px}
 h1{font-size:18px;margin:0 0 8px}
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:6px 8px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 
-/* キャンバスは常に親幅にフィット */
-canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#fff}
+/* キャンバス：親幅にフィット＆横はみ出し防止 */
+canvas{width:100%;max-width:100vw;display:block;border:1px solid var(--line);border-radius:12px;background:#fff}
 
 /* ボタン */
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
@@ -67,7 +60,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 
-/* スマホ最適化（縦向きで収める） */
+/* スマホ調整 */
 @media (max-width:480px){
   h1{font-size:17px}
   .card{padding:10px}
@@ -103,7 +96,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <!-- 右：パラメータ -->
       <div class="card" id="cardCtrl">
         <div class="controls" id="controls">
-          <!-- 通常順：売上→CMR→固定費 -->
           <label class="f" id="paramSales">
             <div class="row1"><span class="ttl">売上高（S）</span>
               <input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,300,000">
@@ -125,17 +117,15 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
           </label>
 
-          <!-- チャレンジチェック（通常は固定費直下、ON後はカラム先頭へ移動） -->
           <div class="challenge" id="challengeBox">
             <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
           </div>
 
           <!-- ガイド（ON時のみ表示） -->
-          <div id="guideFixed" class="guide" style="display:none;">① 固定費はいくらですか？</div>
+          <div id="guideFixed" class="guide" style="display:none;">① （追加の）固定費はいくらですか？</div>
           <div id="guideCMR" class="guide" style="display:none;">② 限界利益率は何％ですか？</div>
-          <div id="guideSales" class="guide" style="display:none;">③ 必要売上高を考えてみましょう</div>
+          <div id="guideSales" class="guide" style="display:none;">③ 上記を元に、必要売上高を考えてみましょう</div>
 
-          <!-- 答え合わせは最後に -->
           <div class="challenge row" id="checkRow" style="display:none;">
             <button id="checkBtn" class="primary" type="button">答え合わせ</button>
             <button id="reset2" class="secondary" type="button">リセット</button>
@@ -159,35 +149,35 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r45</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r46</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r45';
+  const VERSION='r46';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
-  // --- 端末判定 ---
+  // 端末判定
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
      || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-  // --- Canvas & Math ---
+  // Canvas
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
   const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
 
   function computeDims(){
-    const wParent = cv.parentElement.getBoundingClientRect().width;
-    const w=Math.max(300,Math.min(640,Math.floor(wParent))); // 親幅にフィット
+    // 親幅とビューポートの両方でクランプし、モバイル縦で確実にフィット
+    const parentW = cv.parentElement.clientWidth || window.innerWidth;
+    const w = Math.max(280, Math.min(parentW, window.innerWidth - 32)); // 16px左右パディングを考慮
     const isMobile = window.innerWidth < 820;
     const isLandscape = window.innerWidth > window.innerHeight;
-    // スマホ：縦はやや低め、横はさらに低めで1画面収まり重視
-    const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
-    const h=Math.max(220,Math.round(w*ratio));
+    const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66; // スマホ横はさらに低めで1画面に
+    const h = Math.max(220, Math.round(w*ratio));
     dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
   }
   function setupCanvas(){
@@ -204,8 +194,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
     salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange')
   };
-  const playBtn=$('play'), resetBtn=$('reset'), resultEl=$('result'), labelTop=$('labelTop');
-  const mSales=$('mSales'), mCMR=$('mCMR'), mCM=$('mCM'), mBEP=$('mBEP'), mProfit=$('mProfit');
+  const resultEl=$('result');
 
   const toggle=$('challengeToggle'), metrics=$('metrics');
   const controls=$('controls'), challengeBox=$('challengeBox');
@@ -226,34 +215,27 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
   function arrow(x1,y1,x2,y2,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); const a=Math.atan2(y2-y1,x2-x1),h=8; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.closePath(); ctx.fill(); }
 
-  // 固定費の描画：スマホ＝帯（塗り）、PC＝矩形（右端は限界利益矢印の左で止める）
+  // 固定費：スマホ＝帯／PC＝矩形（かなり細く＆限界利益矢印の左側で止める）
   function drawFixed(mt,maxV,xCMArrow){
     const BR=brand();
-    // グラフ有効幅
-    const barL_base=dims.MARGIN, barR_base=dims.W-dims.MARGIN;
-    const barW_base=barR_base-barL_base;
+    const barL=dims.MARGIN, barR=dims.W-dims.MARGIN, barW=barR-barL;
+    const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
 
-    // PCでの余白＆右端制限
-    const sidePadPC=18;
-    const rightLimit = (xCMArrow? xCMArrow-10 : (dims.W-dims.MARGIN-sidePadPC)); // 矢印の少し左
-    const barL_pc=barL_base+sidePadPC;
-    const barR_pc=Math.max(barL_pc+20, Math.min(barR_base-sidePadPC, rightLimit)); // 幅が負にならないよう保護
-    const barW_pc=barR_pc-barL_pc;
-
-    const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
     if(IS_IOS_MOBILE){
-      // 帯：グラフと同幅。塗りのみで上下に伸縮
-      const hHgt=Math.max(0,dims.GROUND_Y-hY);
+      // 帯：グラフと同幅
       ctx.fillStyle='rgba(87,136,153,0.22)';
-      ctx.fillRect(barL_base, hY, barW_base, hHgt);
-      ctx.fillStyle=BR;
-      ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL_base), hY-8);
+      ctx.fillRect(barL, y, barW, hgt);
+      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), y-8);
     }else{
-      // 矩形：少し狭くし、かつ矢印の左で止める
-      const hHgt=Math.max(0,dims.GROUND_Y-hY);
-      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL_pc,hY,barW_pc,hHgt);
-      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL_pc,hY,barW_pc,hHgt);
-      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL_pc), hY-8);
+      // 矩形：左右をもっと狭く、かつ右端は限界利益矢印の手前で止める
+      const leftPad=34, rightPad=34;
+      const rightLimit = xCMArrow ? (xCMArrow-28) : (barR-rightPad);
+      const L = barL+leftPad;
+      const R = Math.max(L+24, Math.min(barR-rightPad, rightLimit));
+      const W = R-L;
+      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(L, y, W, hgt);
+      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(L, y, W, hgt);
+      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,L), y-8);
     }
   }
 
@@ -278,14 +260,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     }
     ctx.setLineDash([]);
 
-    // 矢印X座標を先に計算（固定費矩形の右端制御に使う）
+    // 先にX座標
     const xSalesArrow=dims.W-dims.MARGIN-18;
     const xCMArrow=xSalesArrow-28;
 
     // 固定費
     drawFixed(mt,maxV,xCMArrow);
 
-    // 売上
+    // 売上（下向き矢印）
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
     ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
     ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
@@ -294,7 +276,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益
+    // 限界利益（上向き矢印）
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -365,34 +347,24 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     $('mProfit').textContent=jpy(mt.profit);
     $('warnCMR0').style.display=(mt.cmr<=0)?'block':'none';
   }
-  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); $('labelTop').textContent='限界利益'; }
+  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
-  // --- 並び替え（チャレンジ） ---
+  // 並び替え
   function applyOrderChallenge(){
-    // 表示文言をチャレンジ版に
-    guideFixed.textContent='① （追加の）固定費はいくらですか？';
-    guideCMR.textContent='② 限界利益率は何％ですか？';
-    guideSales.textContent='③ 上記を元に、必要売上高を考えてみましょう';
+    // チャレンジ用文言
+    $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
+    $('guideCMR').textContent='② 限界利益率は何％ですか？';
+    $('guideSales').textContent='③ 上記を元に、必要売上高を考えてみましょう';
 
-    // チェック欄をカラム最上部へ
     controls.insertBefore(challengeBox, controls.firstChild);
-    // ① 固定費
     controls.append(guideFixed); guideFixed.style.display='block'; controls.append(paramFixed);
-    // ② CMR
-    controls.append(guideCMR); guideCMR.style.display='block'; controls.append(paramCMR);
-    // ③ 売上
+    controls.append(guideCMR);   guideCMR.style.display='block';   controls.append(paramCMR);
     controls.append(guideSales); guideSales.style.display='block'; controls.append(paramSales);
-    // 最後：答え合わせ
-    controls.append(checkRow); checkRow.style.display='flex';
+    controls.append(checkRow);   checkRow.style.display='flex';
     controls.append(checkResult);
     metrics.style.display='none';
   }
   function applyOrderNormal(){
-    // 文言を通常版に戻す（非表示だが念のため）
-    guideFixed.textContent='① 固定費はいくらですか？';
-    guideCMR.textContent='② 限界利益率は何％ですか？';
-    guideSales.textContent='③ 必要売上高を考えてみましょう';
-
     guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
     controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
     controls.append(checkRow); checkRow.style.display='none';
@@ -400,21 +372,21 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     metrics.style.display='grid';
   }
 
-  // ===== チャレンジの答え合わせ =====
+  // 答え合わせ
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
-    $('targetShown').textContent = isFinite(target)? jpy(target) : '—';
+    targetShown.textContent = isFinite(target)? jpy(target) : '—';
     const diff = mt.sales - target;
-    $('diff').textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
+    diffEl.textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
     const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
-    $('status').textContent = (isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
+    statusEl.textContent = (isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
     checkResult.style.display='block';
     metrics.style.display='grid';
     if(!playing) playOnce();
   }
 
-  // ===== 統一リセット =====
+  // リセット
   function resetAll(){
     revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
@@ -424,7 +396,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     redrawOnly();
   }
 
-  // ===== プレイ（バウンド） =====
+  // プレイ（バウンド）
   function playOnce(){
     if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
     const mt=calc();
@@ -456,7 +428,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
   // 入力連動
   function linkCurrency(textInput, range, hardMax=null){
-    const toR=()=>{ const v=parseComma(textInput.value);
+    const toR=()=>{ const v=Number(String(textInput.value).replace(/[^\d.-]/g,'')||0);
       if(hardMax && v>hardMax) range.max=hardMax; else if(v>Number(range.max)) range.max=v;
       range.value=String(v);
       if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
@@ -487,11 +459,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
   // チャレンジ切替
   toggle.addEventListener('change', ()=>{
-    if(toggle.checked){
-      applyOrderChallenge();   // カラム最上部にチェック → ①→②→③ → 答え合わせ
-    }else{
-      applyOrderNormal();      // 通常順へ戻す
-    }
+    if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
   });
 
