@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r49 -->
+<!-- internal version: r50 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -19,30 +19,17 @@ html,body{
 .page{min-height:100%;padding:16px}
 .stack{max-width:1120px;width:100%;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
-@media (min-width:960px){
-  .grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}
-}
-@media (max-width:959.9px) and (orientation:landscape){
-  .grid-main{grid-template-columns:1fr 1fr}
-}
+@media (min-width:960px){.grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}}
+@media (max-width:959.9px) and (orientation:landscape){.grid-main{grid-template-columns:1fr 1fr}}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
 h1{font-size:18px;margin:0 0 8px}
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:6px 8px;border-radius:12px;margin:6px 0 10px;font-size:13px}
-
-/* キャンバスはJSで幅を少し狭め、中央寄せ固定 */
-canvas{
-  display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;
-  margin:0 auto;max-width:calc(100vw - 32px);
-}
-
-/* ボタン */
+canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 button{appearance:none;border:0;border-radius:12px;padding:8px 12px;font-weight:700;cursor:pointer}
 .primary{background:var(--brand);color:#fff}.primary:active{background:var(--brand-600)}
 .secondary{background:#fff;color:#0f172a;border:1px solid var(--line-dark)}
 .result{font-size:16px;font-weight:700;margin-top:4px}.result.ng{color:var(--danger)}
-
-/* 入力UI */
 .controls{display:grid;gap:8px}
 label.f{display:block;background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
 .f .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -52,24 +39,19 @@ input[type="text"],input[type="number"]{width:96px;max-width:38vw;background:#ff
 input[type="range"]{appearance:none;width:100%;height:28px;background:transparent}
 input[type="range"]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:var(--line)}
 input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);margin-top:-6px}
-
-/* チャレンジ */
 .challenge{border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
 .guide{color:#334155;font-size:14px;font-weight:700;margin:2px 4px -2px}
 .challenge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
-
-/* 指標 */
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 
-/* モバイル細部 */
 @media (max-width:480px){
   h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}
   input[type="text"],input[type="number"]{width:86px;padding:7px}
 }
-
-/* フッター */
+/* ここで必要売上高を太字に */
+#targetShown{font-weight:700}
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
 </style>
 </head>
@@ -122,7 +104,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           </div>
           <div id="checkResult" style="display:none;margin-top:6px">
             <div>必要売上高：<span id="targetShown">—</span></div>
-            <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status">—</span></div>
+            <div><span id="diffLabel">いまの売上高との差</span>：<span id="diff">—</span>／判定：<span id="status">—</span></div>
             <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
           </div>
           <div id="warnCMR0" class="muted" style="display:none;color:#8b5e00">※ 限界利益率が0%のため、どれだけ売上高があっても黒字になりません。</div>
@@ -138,14 +120,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r49</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r50</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r49';
+  const VERSION='r50';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
@@ -155,8 +137,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // 「答え合わせ」はボール着地後に出す
+  // 「答え合わせ」表示の同期制御
   let pendingCheck=false, pendingVals=null;
+  // 必要売上高ライン表示
+  let showTargetLine=false, targetLineValue=null;
 
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
   const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
@@ -167,14 +151,13 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const isMobile = vpW < 820;
     const isLandscape = vpW > window.innerHeight;
 
-    const avail = Math.min(parentW, vpW - 32); // .page padding(16*2) を考慮
-    const extraInset = isMobile ? 12 : 10;     // 背景のカードが見えるよう少し狭める
+    const avail = Math.min(parentW, vpW - 32);
+    const extraInset = isMobile ? 12 : 10;
     const w = Math.max(280, avail - extraInset*2);
     const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
     const h = Math.max(220, Math.round(w*ratio));
 
     dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
-    // 中央寄せは CSS の margin:auto に任せる（左右ずれ防止）
   }
   function setupCanvas(){
     dpr=Math.max(1,window.devicePixelRatio||1);
@@ -193,7 +176,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
   const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
   const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
-  const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status');
+  const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status'), diffLabelEl=$('diffLabel');
 
   const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
 
@@ -215,14 +198,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     ctx.closePath(); ctx.fill();
   }
 
-  // 固定費：スマホは帯をキャンバス左端(0)まで塗る
+  // 固定費：スマホは帯をキャンバス左端まで
   function drawFixed(mt,maxV,xCMArrow){
     const BR=brand();
     const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
     const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
 
     if(IS_IOS_MOBILE){
-      const startX = 0;                          // キャンバス左端まで
+      const startX = 0;
       const width  = (barR - startX);
       ctx.fillStyle='rgba(87,136,153,0.22)';
       ctx.fillRect(startX, y, width, hgt);
@@ -264,6 +247,16 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
     // 固定費
     drawFixed(mt,maxV,xCMArrow);
+
+    // 必要売上高ライン（答え合わせ後のみ）
+    if(showTargetLine && isFinite(targetLineValue)){
+      const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
+      ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle='#64748b';
+      ctx.beginPath(); ctx.moveTo(dims.MARGIN,yT); ctx.lineTo(dims.W-dims.MARGIN-2,yT); ctx.stroke(); ctx.restore();
+      ctx.fillStyle='#334155'; ctx.textAlign='right';
+      ctx.fillText('必要売上高: '+jpy(targetLineValue), dims.W-6, yT-6);
+      ctx.textAlign='start';
+    }
 
     // 売上
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
@@ -346,11 +339,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
-  // 並び替え
+  // 並び替え（既存ロジックそのまま）
   function applyOrderChallenge(){
-    guideFixed.textContent='① （追加の）固定費はいくらですか？';
-    guideCMR.textContent='② 限界利益率は何％ですか？';
-    guideSales.textContent='③ 上記を元に、必要売上高を考えてみましょう';
+    $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
+    $('guideCMR').textContent='② 限界利益率は何％ですか？';
+    $('guideSales').textContent='③ 上記を元に、必要売上高を考えてみましょう';
     controls.insertBefore(challengeBox, controls.firstChild);
     controls.append(guideFixed); guideFixed.style.display='block'; controls.append(paramFixed);
     controls.append(guideCMR);   guideCMR.style.display='block';   controls.append(paramCMR);
@@ -365,28 +358,34 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     controls.append(checkRow); checkRow.style.display='none';
     controls.append(checkResult); checkResult.style.display='none';
     metrics.style.display='grid';
+    showTargetLine=false; targetLineValue=null;
   }
 
-  // 答え合わせ：着地後に表示するため、ここでは値だけ用意
+  // 答え合わせ：表示は着地後
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
-    const diff = mt.sales - target;
-    const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
-    const status = (isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
+    const diffRaw = mt.sales - target;
+    const diffAbs = Math.abs(diffRaw);
+    const label = diffRaw < 0 ? '不足売上高' : diffRaw > 0 ? '余裕売上高' : '不足/余裕なし';
+    const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
+
     pendingVals = {
       targetText: isFinite(target)? jpy(target) : '—',
-      diffText: isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—',
-      statusText: status
+      targetNum:  isFinite(target)? target : NaN,
+      diffLabel:  label,
+      diffText:   isFinite(diffAbs)? jpy(diffAbs) : '—',
+      statusText: isFinite(pct)? ('誤差 '+pct.toFixed(1)+'%') : '誤差 —'
     };
     pendingCheck=true;
-    if(!playing) playOnce(); // バウンド開始（着地時に表示）
+    if(!playing) playOnce();
   }
 
   // リセット
   function resetAll(){
     revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
-    pendingCheck=false; pendingVals=null; $('checkResult').style.display='none';
+    pendingCheck=false; pendingVals=null; checkResult.style.display='none';
+    showTargetLine=false; targetLineValue=null;
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
     metrics.style.display = toggle.checked ? 'none' : 'grid';
@@ -417,16 +416,19 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
           else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
 
-          // ★ここで「答え合わせ」を表示（同期）
+          // 同期表示：答え合わせ結果＋必要売上高ライン
           if(pendingCheck && pendingVals){
-            $('targetShown').textContent = pendingVals.targetText;
-            $('diff').textContent = pendingVals.diffText;
-            $('status').textContent = pendingVals.statusText;
-            $('checkResult').style.display='block';
+            targetShown.textContent = pendingVals.targetText;
+            diffLabelEl.textContent = pendingVals.diffLabel;
+            diffEl.textContent = pendingVals.diffText;
+            statusEl.textContent = pendingVals.statusText;
+            checkResult.style.display='block';
             metrics.style.display='grid';
+            showTargetLine = isFinite(pendingVals.targetNum);
+            targetLineValue = pendingVals.targetNum;
             pendingCheck=false; pendingVals=null;
+            redrawOnly(); // ライン反映
           }
-
           playing=false; return;
         }
       }
@@ -435,27 +437,31 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     requestAnimationFrame(frame);
   }
 
-  // 入力連動
+  // 入力連動（値変更時は答え合わせ表示/ターゲットラインを消す）
   function linkCurrency(t, r, hardMax=null){
     const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
       if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
-      r.value=String(v); if(toggle.checked){$('checkResult').style.display='none';metrics.style.display='none';}
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
+      r.value=String(v); if(toggle.checked){checkResult.style.display='none';metrics.style.display='none';}
+      revealedByPlay=false; apexMarkerY=null; showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
+      resultEl.textContent=''; redrawOnly();
     };
     const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
-      if(toggle.checked){$('checkResult').style.display='none';metrics.style.display='none';}
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
+      if(toggle.checked){checkResult.style.display='none';metrics.style.display='none';}
+      revealedByPlay=false; apexMarkerY=null; showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
+      resultEl.textContent=''; redrawOnly();
     };
     t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
     r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
   function linkNumber(n,r){
     const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
-      if(toggle.checked){$('checkResult').style.display='none';metrics.style.display='none';}
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+      if(toggle.checked){checkResult.style.display='none';metrics.style.display='none';}
+      revealedByPlay=false; apexMarkerY=null; showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
+      resultEl.textContent=''; redrawOnly(); };
     const toN=()=>{ n.value=r.value;
-      if(toggle.checked){$('checkResult').style.display='none';metrics.style.display='none';}
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+      if(toggle.checked){checkResult.style.display='none';metrics.style.display='none';}
+      revealedByPlay=false; apexMarkerY=null; showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
+      resultEl.textContent=''; redrawOnly(); };
     n.addEventListener('input',toR); n.addEventListener('change',toR);
     r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
@@ -465,9 +471,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   linkCurrency(I.fixed,I.fixedRange,2000000);
 
   // チャレンジ切替
-  toggle.addEventListener('change', ()=>{
+  $('challengeToggle').addEventListener('change', ()=>{
     if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
-    revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; $('checkResult').style.display='none'; pendingCheck=false; pendingVals=null;
+    revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; checkResult.style.display='none';
+    showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
     redrawOnly();
   });
 
