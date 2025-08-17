@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r34 -->
+<!-- internal version: r36 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -8,71 +8,42 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>ボールで学ぶ変動損益計算書（完全版）</title>
 <style>
-:root{
-  --brand:#578899; --brand-600:#4b7481; --ink:#0f172a; --bg:#fff; --panel:#fff;
-  --muted:#64748b; --line:#e5e7eb; --line-dark:#cbd5e1; --side-pad:16px;
-  --danger:#b91c1c;
-}
+:root{ --brand:#578899; --brand-600:#4b7481; --ink:#0f172a; --bg:#fff; --panel:#fff;
+  --muted:#64748b; --line:#e5e7eb; --line-dark:#cbd5e1; --side-pad:16px; --danger:#b91c1c;}
 *{box-sizing:border-box}
-html,body{
-  margin:0; height:100%; width:100%; position:fixed; inset:0; overflow:hidden;
+html,body{ margin:0; height:100%; width:100%; position:fixed; inset:0; overflow:hidden;
   -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
   background:var(--bg); color:var(--ink);
-  font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
-}
-.page{
-  position:fixed; inset:0;
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;}
+.page{ position:fixed; inset:0;
   padding:16px calc(var(--side-pad) + env(safe-area-inset-right))
            calc(16px + env(safe-area-inset-bottom))
            calc(var(--side-pad) + env(safe-area-inset-left));
-  overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain;
-}
+  overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain;}
 .stack{display:block; width:100%; max-width:1120px; margin:0 auto;}
 .grid-main{ display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
-@media (min-width: 960px){
-  .grid-main{ grid-template-columns:1.1fr 0.9fr; }
-}
-
-.card{
-  background:var(--panel); border:1px solid var(--line); border-radius:16px;
-  box-shadow:0 6px 16px rgba(0,0,0,.06); padding:12px; overflow:hidden;
-}
+@media (min-width:960px){ .grid-main{ grid-template-columns:1.1fr 0.9fr; } }
+.card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 16px rgba(0,0,0,.06); padding:12px; overflow:hidden; }
 h1{font-size:18px;margin:0 0 8px}
-.note-top{
-  background:#eef7fa; border:1px solid #d6e7ee; color:#0b3c4a;
-  padding:6px 8px; border-radius:12px; margin:6px 0 10px; font-size:13px;
-}
-
+.note-top{ background:#eef7fa; border:1px solid #d6e7ee; color:#0b3c4a; padding:6px 8px; border-radius:12px; margin:6px 0 10px; font-size:13px; }
 .controls{display:grid; gap:8px}
-label.f{
-  display:block; background:#fafafa; border:1px solid var(--line);
-  border-radius:12px; padding:6px 8px; min-width:0;
-}
+label.f{ display:block; background:#fafafa; border:1px solid var(--line); border-radius:12px; padding:6px 8px; min-width:0;}
 .f .row1{display:flex; align-items:center; justify-content:space-between; gap:8px}
 .f .row1 .ttl{font-weight:600; white-space:nowrap; flex:1 1 auto;}
 .f .row2{margin-top:6px}
 
 input,button,label{font-size:16px; line-height:1.3}
-input[type="number"], input[type="text"]{
-  width:96px; max-width:38vw; background:#fff; border:1px solid var(--line-dark);
-  border-radius:8px; padding:8px 8px; text-align:right;
-}
+input[type="number"], input[type="text"]{ width:96px; max-width:38vw; background:#fff; border:1px solid var(--line-dark);
+  border-radius:8px; padding:8px 8px; text-align:right; }
 
 /* range */
-input[type="range"]{
-  appearance:none; width:100%; max-width:100%;
-  height:28px; background:transparent; border:0; outline:none;
-}
+input[type="range"]{ appearance:none; width:100%; height:28px; background:transparent; border:0; outline:none;}
 input[type="range"]::-webkit-slider-runnable-track{ height:8px; border-radius:999px; background:var(--line); }
 input[type="range"]::-moz-range-track{ height:8px; border-radius:999px; background:var(--line); }
-input[type="range"]::-webkit-slider-thumb{
-  appearance:none; width:20px; height:20px; border-radius:50%; background:var(--brand);
-  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px;
-}
-input[type="range"]::-moz-range-thumb{
-  width:20px; height:20px; border-radius:50%; background:var(--brand);
-  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2);
-}
+input[type="range"]::-webkit-slider-thumb{ appearance:none; width:20px; height:20px; border-radius:50%;
+  background:var(--brand); border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px;}
+input[type="range"]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:var(--brand);
+  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
 
 /* buttons */
 .btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; margin-bottom:0;}
@@ -81,12 +52,10 @@ button{appearance:none; border:0; border-radius:12px; padding:12px 16px; font-we
 .secondary{background:#fff; color:#0f172a; border:1px solid var(--line-dark)}
 .small{padding:8px 12px; font-weight:600; border-radius:10px}
 .btn-compact{ padding:8px 12px; font-size:14px; line-height:1.2; border-radius:10px; }
-@media (max-width:480px){ .btn-compact{ padding:9px 12px; font-size:15px; } }
-
 canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12px; border:1px solid var(--line); background:#fff }
 .muted{color:#64748b; font-size:12px; margin-top:6px}
 .result{font-size:16px; font-weight:700; margin-top:4px}
-.result.ng{ color:var(--danger); } /* 赤字時だけ赤色 */
+.result.ng{ color:var(--danger); }
 
 .metrics{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px}
 .m{background:#fafafa; border:1px solid var(--line); border-radius:12px; padding:10px}
@@ -95,18 +64,14 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 .challenge{margin-top:0;border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
 .status{font-weight:700}
 .guide{color:#334155; font-size:14px; margin:2px 4px -2px; padding-left:2px; font-weight:700;}
-
 .footer{display:flex;justify-content:center;opacity:.95;margin:12px 0 2px;color:#334155;font-size:12px;text-align:center}
 .footer small{white-space:normal;line-height:1.5}
-@media (max-width:480px){
-  input[type="number"],input[type="text"]{width:36vw}
-}
+@media (max-width:480px){ input[type="number"],input[type="text"]{width:36vw} }
 </style>
 </head>
 <body>
-<div class="page" id="page">
+<div class="page">
   <div class="stack">
-
     <div class="grid-main">
       <!-- 左：グラフ -->
       <div class="card" id="cardGraph">
@@ -129,11 +94,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       <div class="card" id="cardCtrl">
         <div class="challenge">
           <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
-          <div id="challengePanel" style="display:none;margin-top:8px">
-            <div>目標売上高：<span id="targetHidden">???</span> <button id="reveal" class="secondary small" type="button">答え表示</button></div>
-            <div id="diffRow">いまの売上高との差：<span id="diff">-</span>／判定：<span id="status" class="status">-</span></div>
-            <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
-          </div>
+          <!-- ここに結果ボックスを動的に差し込む（③の直下） -->
         </div>
 
         <div class="controls" id="controls">
@@ -165,9 +126,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       </div>
     </div>
 
-    <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved.</small>
-    </div>
+    <div class="footer"><small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved.</small></div>
   </div>
 </div>
 
@@ -175,38 +134,53 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 (function(){
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
 
+  // ===== 基本ユーティリティ =====
+  const $=id=>document.getElementById(id);
   document.addEventListener('touchmove',(e)=>{ if(e.touches && e.touches.length>1){ e.preventDefault(); } },{passive:false});
 
-  const $=id=>document.getElementById(id);
-  const cv=$('cv'); if(!cv) return; const ctx=cv.getContext('2d'); if(!ctx) return;
+  const cv=$('cv'); const ctx=cv.getContext('2d');
 
   const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
             salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
   const playBtn=$('play'), resetBtn=$('reset'), resultEl=$('result'), labelTop=$('labelTop');
   const mSales=$('mSales'), mCMR=$('mCMR'), mCM=$('mCM'), mBEP=$('mBEP'), mProfit=$('mProfit');
-  const toggle=$('challengeToggle'), panel=$('challengePanel'), revealBtn=$('reveal');
-  const targetHidden=$('targetHidden'), diffEl=$('diff'), statusEl=$('status'), diffRow=$('diffRow');
+  const toggle=$('challengeToggle');
   const controls=$('controls'); const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
 
-  let revealed=false, revealedByPlay=false, playing=false, apexMarkerY=null;
+  // ガイド(①②③)
+  const guideFixed=document.createElement('div'); guideFixed.className='guide'; guideFixed.textContent='① まずは固定費を設定しましょう';
+  const guideCMR=document.createElement('div'); guideCMR.className='guide'; guideCMR.textContent='② 次に、限界利益率を設定しましょう';
+  const guideSales=document.createElement('div'); guideSales.className='guide'; guideSales.textContent='③ 必要売上高を考えてみましょう';
 
-  const guideFixed=document.createElement('div'); guideFixed.className='guide';
-  guideFixed.textContent='① まずは固定費を設定しましょう';
-  const guideCMR=document.createElement('div'); guideCMR.className='guide';
-  guideCMR.textContent='② 固定費をクリアするのに必要な限界利益率と売上高の組み合わせを考えてみましょう';
+  // 「答え合わせ」ブロック（③の直下に挿入）
+  const checkBlock=document.createElement('div');
+  checkBlock.style.display='none';
+  checkBlock.style.margin='4px 4px 0';
+  checkBlock.innerHTML = `
+    <button id="checkBtn" class="secondary small" type="button">答え合わせ</button>
+    <div id="checkResult" style="display:none; margin-top:6px">
+      <div>必要売上高：<span id="targetShown">—</span></div>
+      <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status" class="status">—</span></div>
+      <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
+    </div>`;
+  const checkBtn = ()=>checkBlock.querySelector('#checkBtn');
+  const checkResult = ()=>checkBlock.querySelector('#checkResult');
+  const targetShown = ()=>checkBlock.querySelector('#targetShown');
+  const diffEl = ()=>checkBlock.querySelector('#diff');
+  const statusEl = ()=>checkBlock.querySelector('#status');
 
-  const parseComma=(v)=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
-  const num=(el)=> (el===I.sales||el===I.fixed)? parseComma(el.value) : Number(el.value||0);
+  const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
+  const num=el=> (el===I.sales||el===I.fixed)? parseComma(el.value) : Number(el.value||0);
   const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
   const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
 
-  let dpr=1;
+  let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
   const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
   const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
+
   function computeDims(){
-    const parent=cv.parentElement||document.body;
-    const rect=parent.getBoundingClientRect ? parent.getBoundingClientRect() : {width: parent.clientWidth||360};
-    const w=Math.max(300,Math.min(640,Math.floor(rect.width||360)));
+    const rect=cv.parentElement.getBoundingClientRect();
+    const w=Math.max(300,Math.min(640,Math.floor(rect.width)));
     const h=Math.max(240,Math.round(w*0.66));
     dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
   }
@@ -238,15 +212,11 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
-    // 上（▲）
-    ctx.beginPath();
-    ctx.moveTo(x,yTop);
+    ctx.beginPath(); ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
-    // 下（▼）
-    ctx.beginPath();
-    ctx.moveTo(x,yBot);
+    ctx.beginPath(); ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
@@ -254,7 +224,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   function draw(mt){
     const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
-    const hide=toggle?.checked && !revealedByPlay;
+    const hide=toggle.checked && !revealedByPlay;
 
     ctx.clearRect(0,0,dims.W,dims.H);
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H);
@@ -263,7 +233,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り（点線）
+    // 目盛り
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.fillStyle='#475569';
     for(let i=0;i<=5;i++){
@@ -273,16 +243,18 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     ctx.setLineDash([]);
 
-    // 固定費（ハードル）矩形
+    // 固定費：矩形（端末幅に応じてやや狭く）
     const BR=brand();
-    const barL=dims.W/2-200, barW=400;
+    const pad = Math.max(12, Math.round(dims.W * 0.08));
+    const barW = Math.max(160, Math.min(400, dims.W - pad*2));
+    const barL = Math.round((dims.W - barW)/2);
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
     const hHgt = Math.max(0, dims.GROUND_Y - hY);
     ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL, hY, barW, hHgt);
     ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL, hY, barW, hHgt);
     ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-8);
 
-    // 売上のガイド点線＋ラベル
+    // 売上ラベル＋点線
     const xSalesArrow = dims.W - dims.MARGIN - 18;
     const xCMArrow    = xSalesArrow - 28;
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
@@ -290,16 +262,11 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     ctx.beginPath(); ctx.moveTo(dims.MARGIN, sY); ctx.lineTo(xSalesArrow-2, sY); ctx.stroke(); ctx.restore();
     const tSales='売上高: '+(hide?'???':jpy(mt.sales));
     const ySales=sY - 6;
-    if(hide){
-      const xLabelRight = xCMArrow - 6;
-      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xLabelRight, ySales); ctx.restore();
-    }else{
-      const xRightWall = dims.W - 6;
-      ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xRightWall, ySales); ctx.restore();
-    }
+    if(hide){ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xCMArrow-6, ySales); ctx.restore(); }
+    else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, BR);
 
-    // 限界利益（点線／ラベル）
+    // 限界利益
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -311,12 +278,10 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       ctx.fillText(tCM, xText, bY-6);
       arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, BR);
     }else{
-      const xLabelRight = xCMArrow - 6;
-      ctx.save(); ctx.fillStyle='#0ea5e9'; ctx.textAlign='right';
-      ctx.fillText('限界利益: ???', xLabelRight, ySales + 16); ctx.restore();
+      ctx.save(); ctx.fillStyle='#0ea5e9'; ctx.textAlign='right'; ctx.fillText('限界利益: ???', xCMArrow-6, ySales+16); ctx.restore();
     }
 
-    // 下部：限界利益率
+    // 限界利益率
     const xMid=(xSalesArrow+xCMArrow)/2;
     ctx.fillStyle='#334155'; ctx.textAlign='center';
     ctx.fillText('限界利益率 ' + mt.cmrPct.toFixed(1) + '%', xMid, dims.H-10);
@@ -329,13 +294,13 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y0,rBall,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke();
     }
 
-    // 残像（apex）
+    // 残像
     if(apexMarkerY!=null){
       ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // ★ プレイ後：両向き矢印＋「黒字/赤字 金額」をボール右に
+    // プレイ後：差分矢印＋黒字/赤字
     if(revealedByPlay){
       const yTop = Math.min(bY, hY), yBot = Math.max(bY, hY);
       const xNearBall = Math.min(dims.W - dims.MARGIN - 24, (dims.W/2) + rBall + 10);
@@ -343,23 +308,16 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       const isProfit = p > 0, isLoss = p < 0;
       const color = isProfit ? BR : (isLoss ? (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#b91c1c') : '#334155');
       dblArrowV(xNearBall, yTop, yBot, color);
-
-      // ラベル
-      let txt = '';
-      if(isProfit) txt = '黒字 ' + jpy(p);
-      else if(isLoss) txt = '赤字 ' + jpy(-p);
-      else txt = '±0';
-      ctx.save();
-      ctx.fillStyle = color; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+      let txt = isProfit ? ('黒字 ' + jpy(p)) : isLoss ? ('赤字 ' + jpy(-p)) : '±0';
+      ctx.save(); ctx.fillStyle=color; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       ctx.textBaseline='middle';
-      const wlbl = ctx.measureText(txt).width;
-      const xLbl = Math.min(dims.W - 6 - wlbl, xNearBall + 10);
-      const yLbl = (yTop + yBot) / 2;
-      ctx.fillText(txt, xLbl, yLbl);
+      const wlbl=ctx.measureText(txt).width;
+      ctx.fillText(txt, Math.min(dims.W-6-wlbl, xNearBall+10), (yTop+yBot)/2);
       ctx.restore();
     }
   }
 
+  // ===== メトリクス表示 =====
   function renderMetrics(mt){
     mSales.textContent=jpy(mt.sales);
     mCMR.textContent=mt.cmrPct.toFixed(1)+'%';
@@ -369,52 +327,73 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     $('warnCMR0').style.display=(mt.cmr<=0)?'block':'none';
   }
 
-  function renderChallenge(mt){
-    panel.style.display = toggle.checked ? 'block' : 'none';
-    const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
+  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); labelTop.textContent='限界利益'; }
 
-    if(toggle.checked){
-      const shown = revealedByPlay || revealed;
-      mCMR.textContent = mt.cmrPct.toFixed(1)+'%';
-      mSales.textContent  = shown ? jpy(mt.sales)  : '???';
-      mCM.textContent     = shown ? jpy(mt.cm)     : '???';
-      mProfit.textContent = shown ? jpy(mt.profit) : '???';
-      diffRow.style.display = shown ? 'block' : 'none';
-      if(shown){
-        const diff=mt.sales - target;
-        const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
-        const st=(isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
-        diffEl.textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
-        statusEl.textContent = isFinite(pct)? st : '—';
-        targetHidden.textContent = isFinite(target)? jpy(target) : '—';
-        mBEP.textContent = isFinite(target)? jpy(target) : '—';
-      }else{
-        diffEl.textContent='???'; statusEl.textContent='—'; targetHidden.textContent='???'; mBEP.textContent='???';
-      }
-    } else {
-      diffRow.style.display='block';
-      renderMetrics(mt);
-    }
-  }
-
-  function redrawOnly(){ const mt=calc(); renderChallenge(mt); draw(mt); labelTop.textContent='限界利益'; }
-
+  // ===== チャレンジ（並べ替え＆答え合わせ） =====
   function reorderParameters(isChallenge){
     if(isChallenge){
       controls.append(paramFixed, paramCMR, paramSales);
       controls.insertBefore(guideFixed, paramFixed);
       controls.insertBefore(guideCMR, paramCMR);
-      guideFixed.style.display='block'; guideCMR.style.display='block';
+      controls.insertBefore(guideSales, paramSales);
+      controls.append(checkBlock);
+      guideFixed.style.display='block'; guideCMR.style.display='block'; guideSales.style.display='block';
+      checkBlock.style.display='block';
     }else{
-      guideFixed.style.display='none'; guideCMR.style.display='none';
+      guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
+      checkBlock.style.display='none'; checkResult().style.display='none';
+      // 通常順
       controls.append(paramSales, paramCMR, paramFixed);
     }
   }
 
-  function playOnce(){
-    if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
+  function doCheckAnswer(){
     const mt=calc();
-    const maxV=Math.max(1, mt.sales, mt.cm, mt.fixed)*1.15;
+    const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
+    // 結果を表示
+    targetShown().textContent = isFinite(target)? jpy(target) : '—';
+    const diff = mt.sales - target;
+    diffEl().textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
+    const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
+    const st=(isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
+    statusEl().textContent = isFinite(pct)? st : '—';
+    checkResult().style.display='block';
+  }
+
+  // ===== インタラクション =====
+  function linkCurrency(textInput, range, {maxGrow=true, hardMax=null}={}){
+    const toR=()=>{ const v=Number(String(textInput.value??'').replace(/[^\d.-]/g,'')||0);
+      if(maxGrow){ const m=Number(range.max||0); if(v>m){ range.max = hardMax?Math.min(v,hardMax):v; } }
+      range.value=String(v);
+      if(toggle.checked){ checkResult().style.display='none'; }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly();
+    };
+    const toN=()=>{ const v=Number(range.value||0);
+      textInput.value = (isFinite(v)? Math.round(v).toLocaleString('ja-JP') : '');
+      if(toggle.checked){ checkResult().style.display='none'; }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly();
+    };
+    textInput.addEventListener('input', toR); textInput.addEventListener('change', toR); textInput.addEventListener('blur', toR);
+    range.addEventListener('input', toN); range.addEventListener('change', toN);
+  }
+  function linkNumber(n,r,{maxGrow=true}={}){
+    const toR=()=>{ const v=Number(n.value||0); if(maxGrow){const m=Number(r.max||0); if(v>m){r.max=v;}} r.value=String(v);
+      if(toggle.checked){ checkResult().style.display='none'; }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly(); };
+    const toN=()=>{ n.value=r.value;
+      if(toggle.checked){ checkResult().style.display='none'; }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly(); };
+    n.addEventListener('input',toR); n.addEventListener('change',toR); r.addEventListener('input',toN); r.addEventListener('change',toN);
+  }
+
+  linkCurrency(I.sales,I.salesRange,{hardMax:5000000});
+  linkNumber(I.cmr,I.cmrRange,{maxGrow:false});
+  linkCurrency(I.fixed,I.fixedRange,{hardMax:2000000});
+
+  // ボタン等
+  playBtn.addEventListener('click', ()=>{
+    if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
+    const mt=calc(); const maxV=Math.max(1, mt.sales, mt.cm, mt.fixed)*1.15;
     const sH=sy(mt.sales,maxV), tH=sy(mt.cm,maxV);
     const r=9; let y=dims.GROUND_Y - sH, vy=0, g=.6, prevVy=0, bounced=false, ground=dims.GROUND_Y - r; apexMarkerY=null;
     const ball=()=>{ ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke(); };
@@ -426,86 +405,48 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       }else if(bounced){
         if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
         if(vy>0 && y>=ground){
-          revealedByPlay=true; // ← ここで差分ラベルを表示可能に
-          redrawOnly(); ball();
-          const p=mt.cm - mt.fixed;
-          if(p>0){
-            resultEl.classList.remove('ng');
-            resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`;
-          } else if(p<0){
-            resultEl.classList.add('ng');
-            resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, mt.fixed - mt.cm))} の限界利益が必要`;
-          } else {
-            resultEl.classList.remove('ng');
-            resultEl.textContent=`損益分岐点！ ±0（トントン）`;
-          }
+          revealedByPlay=true; redrawOnly(); ball();
+          const p=calc().profit;
+          if(p>0){ resultEl.classList.remove('ng'); resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`; }
+          else if(p<0){ resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, calc().fixed - calc().cm))} の限界利益が必要`; }
+          else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
           playing=false; return;
         }
       }
       redrawOnly(); ball(); requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-  }
+  });
 
-  function linkCurrency(textInput, range, {maxGrow=true, hardMax=null}={}){
-    const toR=()=>{ const v=Number(String(textInput.value??'').replace(/[^\d.-]/g,'')||0);
-      if(maxGrow){ const m=Number(range.max||0); if(v>m){ range.max = hardMax?Math.min(v,hardMax):v; } }
-      range.value=String(v);
-      if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; }
-      resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly();
-    };
-    const toN=()=>{ const v=Number(range.value||0);
-      textInput.value = (isFinite(v)? Math.round(v).toLocaleString('ja-JP') : '');
-      if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; }
-      resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly();
-    };
-    textInput.addEventListener('input', toR);
-    textInput.addEventListener('change', toR);
-    textInput.addEventListener('blur', toR);
-    range.addEventListener('input', toN);
-    range.addEventListener('change', toN);
-  }
-  function linkNumber(n,r,{maxGrow=true,hardMax=null}={}){
-    const toR=()=>{ const v=Number(n.value||0); if(maxGrow){const m=Number(r.max||0); if(v>m){r.max=hardMax?Math.min(v,hardMax):v;}} r.value=String(v);
-      if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; } resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
-    const toN=()=>{ n.value=r.value; if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; } resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
-    n.addEventListener('input',toR); n.addEventListener('change',toR); r.addEventListener('input',toN); r.addEventListener('change',toN);
-  }
-
-  linkCurrency(I.sales,I.salesRange,{hardMax:5000000});
-  linkNumber(I.cmr,I.cmrRange,{maxGrow:false});
-  linkCurrency(I.fixed,I.fixedRange,{hardMax:2000000});
-
-  playBtn.addEventListener('click', playOnce);
   resetBtn.addEventListener('click', ()=>{
-    revealed=false; revealedByPlay=false; apexMarkerY=null; playing=false;
-    resultEl.classList.remove('ng'); resultEl.textContent='';
-    I.sales.value=(1300000).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(1000000).toLocaleString('ja-JP');
+    revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
+    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
-    redrawOnly();
+    checkResult().style.display='none'; redrawOnly();
   });
+
   toggle.addEventListener('change', ()=>{
-    revealed=false; revealedByPlay=false; apexMarkerY=null;
-    panel.style.display=toggle.checked?'block':'none';
     reorderParameters(toggle.checked);
-    resultEl.classList.remove('ng'); resultEl.textContent='';
+    checkResult().style.display='none';
+    revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng');
     redrawOnly();
   });
-  revealBtn.addEventListener('click', ()=>{ revealed=true; redrawOnly(); });
 
+  // レイアウト監視
   function layoutAndRedraw(){ computeDims(); setupCanvas(); redrawOnly(); }
-  const parent=cv.parentElement||document.body;
-  if('ResizeObserver' in window){ const ro=new ResizeObserver(()=> layoutAndRedraw()); ro.observe(parent); }
-  window.addEventListener('resize', layoutAndRedraw);
-  ['DOMContentLoaded','load','pageshow','orientationchange'].forEach(ev=>{
-    window.addEventListener(ev, ()=> requestAnimationFrame(layoutAndRedraw));
-  });
+  if('ResizeObserver' in window){ new ResizeObserver(layoutAndRedraw).observe(cv.parentElement); }
+  ['DOMContentLoaded','load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layoutAndRedraw)));
 
-  (function initFormat(){
-    I.sales.value=(1300000).toLocaleString('ja-JP');
-    I.fixed.value=(1000000).toLocaleString('ja-JP');
+  // 初期化
+  (function init(){
+    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
+    I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.cmr.value=String(DEFAULTS.cmr);
-    reorderParameters(toggle.checked);
+    controls.append(paramSales, paramCMR, paramFixed); // 通常順
+    // checkBlock のボタンイベント
+    document.body.addEventListener('click',(e)=>{
+      if(e.target && e.target.id==='checkBtn'){ doCheckAnswer(); }
+    });
   })();
   setTimeout(layoutAndRedraw, 60);
 })();
