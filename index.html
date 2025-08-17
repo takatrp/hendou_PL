@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r42 -->
+<!-- internal version: r43 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -12,28 +12,32 @@
 }
 *{box-sizing:border-box}
 html,body{
-  margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:hidden;
+  margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;
   -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
   background:#fff;color:var(--ink);
   font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,
         "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
 }
-.page{position:fixed;inset:0;padding:16px;overflow:auto}
+.page{min-height:100%;padding:16px}
 .stack{max-width:1120px;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
-@media (min-width:960px){ .grid-main{grid-template-columns:1.1fr 0.9fr} } /* PCで2カラム、スマホは1カラム */
+@media (min-width:960px){ .grid-main{grid-template-columns:1.1fr 0.9fr} } /* PCは2カラム、iPhoneは1カラム */
 
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px}
 h1{font-size:18px;margin:0 0 8px}
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:6px 8px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 
+/* キャンバス */
 canvas{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#fff}
+
+/* ボタン */
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 button{appearance:none;border:0;border-radius:12px;padding:8px 12px;font-weight:700;cursor:pointer}
 .primary{background:var(--brand);color:#fff}.primary:active{background:var(--brand-600)}
 .secondary{background:#fff;color:#0f172a;border:1px solid var(--line-dark)}
 .result{font-size:16px;font-weight:700;margin-top:4px}.result.ng{color:var(--danger)}
 
+/* 入力UI */
 .controls{display:grid;gap:8px}
 label.f{display:block;background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
 .f .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -44,14 +48,25 @@ input[type="range"]{appearance:none;width:100%;height:28px;background:transparen
 input[type="range"]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:var(--line)}
 input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);margin-top:-6px}
 
+/* チャレンジ */
 .challenge{border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
 .guide{color:#334155;font-size:14px;font-weight:700;margin:2px 4px -2px}
 .challenge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
 
+/* 指標カード */
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 
+/* スマホ最適化：縦に収めるための軽い縮小 */
+@media (max-width:480px){
+  h1{font-size:17px}
+  .card{padding:10px}
+  .note-top{font-size:12px}
+  input[type="text"],input[type="number"]{width:86px;padding:7px}
+}
+
+/* フッター */
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
 </style>
 </head>
@@ -101,12 +116,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
           </label>
 
-          <!-- チャレンジ（固定費の直下に常設のチェック） -->
+          <!-- チャレンジチェック（通常は固定費直下、ON後はカラム先頭へ移動） -->
           <div class="challenge" id="challengeBox">
             <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
           </div>
 
-          <!-- ガイド（ON時に所定の場所へ差し込み） -->
+          <!-- ガイド（ON時のみ表示） -->
           <div id="guideFixed" class="guide" style="display:none;">① 固定費はいくらですか？</div>
           <div id="guideCMR" class="guide" style="display:none;">② 限界利益率は何％ですか？</div>
           <div id="guideSales" class="guide" style="display:none;">③ 必要売上高を考えてみましょう</div>
@@ -134,14 +149,21 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         </div>
       </div>
     </div>
-    <div class="footer"><small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved.</small></div>
+    <div class="footer">
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r43</small>
+    </div>
   </div>
 </div>
 
 <script>
 (function(){
+  const VERSION='r43';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
+
+  // ===== 端末判定（iPhoneで帯表示） =====
+  const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
+     || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
   // ===== Canvas & Math =====
   const cv=$('cv'), ctx=cv.getContext('2d');
@@ -151,8 +173,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
   function computeDims(){
     const r=cv.parentElement.getBoundingClientRect();
+    const isSmall=r.width<430;
     const w=Math.max(300,Math.min(640,Math.floor(r.width)));
-    const h=Math.max(240,Math.round(w*0.66));
+    const ratio=isSmall?0.60:0.66;                 // iPhone縦は少し低めに
+    const h=Math.max(220,Math.round(w*ratio));
     dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
   }
   function setupCanvas(){
@@ -190,7 +214,27 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
 
   function arrow(x1,y1,x2,y2,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); const a=Math.atan2(y2-y1,x2-x1),h=8; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.closePath(); ctx.fill(); }
-  function dblArrowV(x,yTop,yBot,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke(); const h=8; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6)); ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6)); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(x,yBot); ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6)); ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6)); ctx.closePath(); ctx.fill(); }
+
+  function drawFixed(mt,maxV){
+    const BR=brand();
+    const barL=dims.MARGIN, barW=dims.W-2*dims.MARGIN;
+    const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
+
+    if(IS_IOS_MOBILE){
+      // iPhone：帯表示（太い横バー）
+      const bandH=8;
+      ctx.fillStyle='rgba(87,136,153,0.35)';
+      ctx.fillRect(barL, hY-bandH/2, barW, bandH);
+      ctx.fillStyle=BR;
+      ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-10);
+    }else{
+      // PC：矩形表示（以前の仕様）
+      const hHgt=Math.max(0,dims.GROUND_Y-hY);
+      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL,hY,barW,hHgt);
+      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL,hY,barW,hHgt);
+      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-8);
+    }
+  }
 
   function draw(mt){
     const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
@@ -213,15 +257,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     }
     ctx.setLineDash([]);
 
-    // 固定費：矩形（グラフ有効幅いっぱい）
-    const BR=brand();
-    const barL=dims.MARGIN, barW=dims.W-2*dims.MARGIN;
-    const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH, hHgt=Math.max(0,dims.GROUND_Y-hY);
-    ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL,hY,barW,hHgt);
-    ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(barL,hY,barW,hHgt);
-    ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,barL), hY-8);
+    // 固定費（端末で出し分け）
+    drawFixed(mt,maxV);
 
-    // 売上高（右寄せラベル＋下向き矢印、チャレンジONかつ未プレイは???）
+    // 売上（右寄せラベル＋下向き矢印）
     const xSalesArrow=dims.W-dims.MARGIN-18;
     const xCMArrow=xSalesArrow-28;
     const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
@@ -230,9 +269,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const tSales='売上高: '+(hide?'???':jpy(mt.sales)); const ySales=sY-6;
     if(hide){ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xCMArrow-6, ySales); ctx.restore(); }
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
-    arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, BR);
+    arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益（上向き矢印はプレイ後のみ、未プレイは???を売上ラベルの左下に）
+    // 限界利益（上向き矢印はプレイ後のみ）
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
@@ -241,7 +280,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const tCM='限界利益: '+jpy(b); const w=ctx.measureText(tCM).width;
       const xText=Math.min(dims.W-dims.MARGIN-w, xCMArrow+8);
       ctx.fillText(tCM, xText, bY-6);
-      arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, BR);
+      arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, brand());
     }else{
       ctx.save(); ctx.fillStyle='#0ea5e9'; ctx.textAlign='right';
       ctx.fillText('限界利益: ???', xCMArrow-6, ySales+16);
@@ -268,7 +307,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // プレイ後：固定費と限界利益の差を両向き矢印＋テキスト
+    // プレイ後：固定費と限界利益の差（両向き矢印＋ラベル）
     if(revealedByPlay){
       const bH2=sy(mt.cm,maxV), bY2=dims.GROUND_Y-bH2;
       const hH2=sy(mt.fixed,maxV), hY2=dims.GROUND_Y-hH2;
@@ -311,23 +350,29 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
   // ===== 並び替え =====
   function applyOrderChallenge(){
-    /* 並び：①固定費(ガイド→入力) → チェックラベル → ②CMR(ガイド→入力) → ③売上(ガイド→入力) → 答え合わせ → 結果 */
+    // チェック欄をカラム最上部へ
+    controls.insertBefore(challengeBox, controls.firstChild);
+
+    // ① 固定費（ガイド→入力）
     controls.append(guideFixed); guideFixed.style.display='block';
     controls.append(paramFixed);
-    controls.append(challengeBox); /* 固定費の直下に常設 */
 
+    // ② CMR（ガイド→入力）
     controls.append(guideCMR); guideCMR.style.display='block';
     controls.append(paramCMR);
 
+    // ③ 売上（ガイド→入力）
     controls.append(guideSales); guideSales.style.display='block';
     controls.append(paramSales);
 
+    // 最後：答え合わせ・リセット → 結果
     controls.append(checkRow); checkRow.style.display='flex';
     controls.append(checkResult); // 押下後に表示
     metrics.style.display='none';
   }
   function applyOrderNormal(){
     guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
+    // 通常：売上→CMR→固定費→チャレンジ
     controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
     controls.append(checkRow); checkRow.style.display='none';
     controls.append(checkResult); checkResult.style.display='none';
@@ -422,9 +467,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   // チャレンジ切替
   toggle.addEventListener('change', ()=>{
     if(toggle.checked){
-      applyOrderChallenge();       // ①→②→③→答え合わせ の順に構成
+      applyOrderChallenge();   // カラム最上部にチェック欄 → ①→②→③ → 答え合わせ
     }else{
-      applyOrderNormal();          // 通常順に戻す（売上→CMR→固定費）
+      applyOrderNormal();      // 通常順に戻す
     }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
   });
