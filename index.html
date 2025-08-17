@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r29 -->
+<!-- internal version: r30 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -67,7 +67,7 @@ input[type="range"]::-webkit-slider-runnable-track{ height:8px; border-radius:99
 input[type="range"]::-moz-range-track{ height:8px; border-radius:999px; background:var(--line); }
 input[type="range"]::-webkit-slider-thumb{
   appearance:none; width:20px; height:20px; border-radius:50%; background:var(--brand);
-  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px;
+  border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); margin-top:-6px; /* つまみをバー中央に */
 }
 input[type="range"]::-moz-range-thumb{
   width:20px; height:20px; border-radius:50%; background:var(--brand);
@@ -94,7 +94,8 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 .m.em{outline:1px solid rgba(87,136,153,.35); background:rgba(87,136,153,.06)}
 .challenge{margin-top:0;border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
 .status{font-weight:700}
-.guide{color:#334155; font-size:14px; margin:2px 4px -2px; padding-left:2px}
+/* ★ 太字に */
+.guide{color:#334155; font-size:14px; margin:2px 4px -2px; padding-left:2px; font-weight:700;}
 
 .footer{display:flex;justify-content:center;opacity:.95;margin:12px 0 2px;color:#334155;font-size:12px;text-align:center}
 .footer small{white-space:normal;line-height:1.5}
@@ -191,7 +192,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
   let revealed=false, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // ①/②ガイド
+  // ①/②ガイド（太字はCSS .guide で指定）
   const guideFixed=document.createElement('div'); guideFixed.className='guide';
   guideFixed.textContent='① まずは固定費を設定しましょう';
   const guideCMR=document.createElement('div'); guideCMR.className='guide';
@@ -394,14 +395,14 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
       }else if(bounced){
         if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
         if(vy>0 && y>=ground){
-          revealedByPlay=true;
+          revealedByPlay=true; // プレイ後に開示
           redrawOnly(); ball();
           const p=mt.cm - mt.fixed;
           if(p>0){
             resultEl.classList.remove('ng');
             resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`;
           } else if(p<0){
-            resultEl.classList.add('ng'); // ← 赤字なら赤色
+            resultEl.classList.add('ng'); // ← 赤字時は赤色
             resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, mt.fixed - mt.cm))} の限界利益が必要`;
           } else {
             resultEl.classList.remove('ng');
@@ -436,10 +437,8 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   }
   function linkNumber(n,r,{maxGrow=true,hardMax=null}={}){
     const toR=()=>{ const v=Number(n.value||0); if(maxGrow){const m=Number(r.max||0); if(v>m){r.max=hardMax?Math.min(v,hardMax):v;}} r.value=String(v);
-      if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; }
-      resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
-    const toN=()=>{ n.value=r.value; if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; }
-      resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
+      if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; } resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
+    const toN=()=>{ n.value=r.value; if(toggle.checked){ revealed=false; revealedByPlay=false; apexMarkerY=null; } resultEl.classList.remove('ng'); resultEl.textContent=''; redrawOnly(); };
     n.addEventListener('input',toR); n.addEventListener('change',toR); r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
 
@@ -450,8 +449,8 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   // イベント
   playBtn.addEventListener('click', playOnce);
   resetBtn.addEventListener('click', ()=>{
-    revealed=false; revealedByPlay=false; apexMarkerY=null; playing=false;
-    resultEl.classList.remove('ng'); resultEl.textContent='';
+    revealed=false; revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent='';
+    resultEl.classList.remove('ng');
     I.sales.value=(1300000).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(1000000).toLocaleString('ja-JP');
     I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
     redrawOnly();
