@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r38 -->
+<!-- internal version: r39 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -109,7 +109,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
           </label>
 
-          <!-- チャレンジ：固定費の直下に配置 -->
+          <!-- チャレンジ：固定費の直下に常設、ONで並べ替え開始 -->
           <div class="challenge" id="challengeBox">
             <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
             <div id="guideFixed" class="guide" style="display:none">① まずは固定費を設定しましょう</div>
@@ -236,11 +236,10 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     }
     ctx.setLineDash([]);
 
-    // 固定費：矩形（端末幅に応じてやや狭く）
+    // 固定費：矩形（元の幅＝有効領域いっぱい）
     const BR=brand();
-    const pad = Math.max(12, Math.round(dims.W * 0.08));
-    const barW = Math.max(160, Math.min(400, dims.W - pad*2));
-    const barL = Math.round((dims.W - barW)/2);
+    const barL = dims.MARGIN;
+    const barW = dims.W - 2*dims.MARGIN;
     const hH=sy(mt.fixed,maxV), hY=dims.GROUND_Y-hH;
     const hHgt = Math.max(0, dims.GROUND_Y - hY);
     ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(barL, hY, barW, hHgt);
@@ -323,19 +322,19 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); labelTop.textContent='限界利益'; }
 
-  // 並べ替え＆表示制御（チャレンジON：固定費→CMR→売上高）
+  // 並べ替え＆表示制御（チャレンジON：①固定費 → ②CMR → ③売上高）
   function reorderParameters(isChallenge){
     if(isChallenge){
       controls.append(paramFixed, paramCMR, paramSales);
-      controls.insertBefore($('challengeBox'), paramCMR); // 固定費の直下にチャレンジ
+      controls.insertBefore($('challengeBox'), paramCMR);   // 固定費の直下にチャレンジ
       guideFixed.style.display='block'; guideCMR.style.display='block'; guideSales.style.display='block';
       checkRow.style.display='flex';
-      metrics.style.display='none';       // 答え合わせ前は隠す
+      metrics.style.display='none';                         // 答え合わせ前は隠す
     }else{
       guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
       checkRow.style.display='none'; checkResult.style.display='none';
-      controls.append(paramSales, paramCMR, paramFixed);
-      controls.append($('challengeBox')); // 通常は固定費の下にそのまま
+      controls.append(paramSales, paramCMR, paramFixed);    // 通常順
+      controls.append($('challengeBox'));                   // ただし固定費の直下に常設
       metrics.style.display='grid';
     }
   }
@@ -352,7 +351,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     statusEl.textContent = isFinite(pct)? st : '—';
     checkResult.style.display='block';
     metrics.style.display='grid';     // メトリクスを表示
-    if(!playing) playOnce();          // 同じ挙動（バウンド）を実行
+    if(!playing) playOnce();          // バウンドと結果表示
   }
 
   // 共通リセット
@@ -447,7 +446,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
     I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.cmr.value=String(DEFAULTS.cmr);
-    // 通常順：売上→CMR→固定費、チャレンジは固定費の直下に配置されるが常に固定費の下に保持
+    // 通常順：売上→CMR→固定費、チャレンジは固定費の直下でONしても順番は①→②→③へ並べ替え
     controls.append(paramSales, paramCMR, paramFixed);
     controls.append($('challengeBox'));
   })();
