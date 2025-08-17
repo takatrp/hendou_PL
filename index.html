@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r37 -->
+<!-- internal version: r38 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -62,6 +62,7 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 .m .k{color:#334155; font-size:12px} .m .v{font-weight:700; margin-top:4px}
 .m.em{outline:1px solid rgba(87,136,153,.35); background:rgba(87,136,153,.06)}
 .challenge{margin-top:0;border:1px dashed var(--line-dark);padding:10px;border-radius:12px;background:#fbfdfe}
+.challenge .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px}
 .status{font-weight:700}
 .guide{color:#334155; font-size:14px; margin:2px 4px -2px; padding-left:2px; font-weight:700;}
 .footer{display:flex;justify-content:center;opacity:.95;margin:12px 0 2px;color:#334155;font-size:12px;text-align:center}
@@ -92,11 +93,6 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
 
       <!-- 右：パラメータ -->
       <div class="card" id="cardCtrl">
-        <div class="challenge">
-          <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
-          <!-- ③の直下に差し込む -->
-        </div>
-
         <div class="controls" id="controls">
           <label class="f" id="paramSales">
             <div class="row1"><span class="ttl">売上高（S）</span><input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,300,000"></div>
@@ -112,6 +108,23 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
             <div class="row1"><span class="ttl">固定費（FC）</span><input id="fixed" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,000,000"></div>
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
           </label>
+
+          <!-- チャレンジ：固定費の直下に配置 -->
+          <div class="challenge" id="challengeBox">
+            <label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label>
+            <div id="guideFixed" class="guide" style="display:none">① まずは固定費を設定しましょう</div>
+            <div id="guideCMR" class="guide" style="display:none">② 次に、限界利益率を設定しましょう</div>
+            <div id="guideSales" class="guide" style="display:none">③ 必要売上高を考えてみましょう</div>
+            <div class="row" id="checkRow" style="display:none">
+              <button id="checkBtn" class="primary btn-compact" type="button">答え合わせ</button>
+              <button id="reset2" class="secondary btn-compact" type="button">リセット</button>
+            </div>
+            <div id="checkResult" style="display:none; margin-top:6px">
+              <div>必要売上高：<span id="targetShown">—</span></div>
+              <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status" class="status">—</span></div>
+              <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
+            </div>
+          </div>
 
           <div id="warnCMR0" class="muted" style="display:none;color:#8b5e00">※ 限界利益率が0%のため、どれだけ売上高があっても黒字になりません。</div>
         </div>
@@ -145,28 +158,9 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   const mSales=$('mSales'), mCMR=$('mCMR'), mCM=$('mCM'), mBEP=$('mBEP'), mProfit=$('mProfit');
   const toggle=$('challengeToggle'), metrics=$('metrics');
   const controls=$('controls'); const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
-
-  // ガイド(①②③)
-  const guideFixed=document.createElement('div'); guideFixed.className='guide'; guideFixed.textContent='① まずは固定費を設定しましょう';
-  const guideCMR=document.createElement('div'); guideCMR.className='guide'; guideCMR.textContent='② 次に、限界利益率を設定しましょう';
-  const guideSales=document.createElement('div'); guideSales.className='guide'; guideSales.textContent='③ 必要売上高を考えてみましょう';
-
-  // 「答え合わせ」ブロック（③の直下に挿入）…色はプレイと同じ（primary）
-  const checkBlock=document.createElement('div');
-  checkBlock.style.display='none';
-  checkBlock.style.margin='4px 4px 0';
-  checkBlock.innerHTML = `
-    <button id="checkBtn" class="primary btn-compact" type="button">答え合わせ</button>
-    <div id="checkResult" style="display:none; margin-top:6px">
-      <div>必要売上高：<span id="targetShown">—</span></div>
-      <div>いまの売上高との差：<span id="diff">—</span>／判定：<span id="status" class="status">—</span></div>
-      <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
-    </div>`;
-  const checkBtn = ()=>checkBlock.querySelector('#checkBtn');
-  const checkResult = ()=>checkBlock.querySelector('#checkResult');
-  const targetShown = ()=>checkBlock.querySelector('#targetShown');
-  const diffEl = ()=>checkBlock.querySelector('#diff');
-  const statusEl = ()=>checkBlock.querySelector('#status');
+  const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
+  const checkRow=$('checkRow'), checkBtn=$('checkBtn'), checkResult=$('checkResult'), reset2=$('reset2');
+  const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status');
 
   const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
   const num=el=> (el===I.sales||el===I.fixed)? parseComma(el.value) : Number(el.value||0);
@@ -329,38 +323,46 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); labelTop.textContent='限界利益'; }
 
-  // 並べ替え＆表示制御
+  // 並べ替え＆表示制御（チャレンジON：固定費→CMR→売上高）
   function reorderParameters(isChallenge){
     if(isChallenge){
       controls.append(paramFixed, paramCMR, paramSales);
-      controls.insertBefore(guideFixed, paramFixed);
-      controls.insertBefore(guideCMR, paramCMR);
-      controls.insertBefore(guideSales, paramSales);
-      controls.append(checkBlock);
+      controls.insertBefore($('challengeBox'), paramCMR); // 固定費の直下にチャレンジ
       guideFixed.style.display='block'; guideCMR.style.display='block'; guideSales.style.display='block';
-      checkBlock.style.display='block';
-      metrics.style.display='none';               // ここで非表示
+      checkRow.style.display='flex';
+      metrics.style.display='none';       // 答え合わせ前は隠す
     }else{
       guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
-      checkBlock.style.display='none'; checkResult().style.display='none';
+      checkRow.style.display='none'; checkResult.style.display='none';
       controls.append(paramSales, paramCMR, paramFixed);
-      metrics.style.display='grid';               // 通常は表示
+      controls.append($('challengeBox')); // 通常は固定費の下にそのまま
+      metrics.style.display='grid';
     }
   }
 
-  // 「答え合わせ」：結果表示＋プレイ動作を実行
+  // 「答え合わせ」：結果表示＋プレイ動作
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
-    targetShown().textContent = isFinite(target)? jpy(target) : '—';
+    targetShown.textContent = isFinite(target)? jpy(target) : '—';
     const diff = mt.sales - target;
-    diffEl().textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
+    diffEl.textContent = isFinite(diff)? (diff>=0?'+':'')+jpy(diff) : '—';
     const pct=(isFinite(target)&&target>0)?Math.abs(diff)/target:Infinity;
     const st=(isFinite(pct)&&pct<=0.01)?'クリア！':(isFinite(pct)&&pct<=0.05)?'ニア':'未達';
-    statusEl().textContent = isFinite(pct)? st : '—';
-    checkResult().style.display='block';
-    metrics.style.display='grid';                 // サマリーを表示
-    if(!playing) playOnce();                      // 同じ挙動（バウンド）を実行
+    statusEl.textContent = isFinite(pct)? st : '—';
+    checkResult.style.display='block';
+    metrics.style.display='grid';     // メトリクスを表示
+    if(!playing) playOnce();          // 同じ挙動（バウンド）を実行
+  }
+
+  // 共通リセット
+  function resetAll(){
+    revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
+    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
+    I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
+    checkResult.style.display='none';
+    metrics.style.display = toggle.checked ? 'none' : 'grid';
+    redrawOnly();
   }
 
   // プレイ（バウンド）
@@ -396,12 +398,12 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     const toR=()=>{ const v=Number(String(textInput.value??'').replace(/[^\d.-]/g,'')||0);
       if(maxGrow){ const m=Number(range.max||0); if(v>m){ range.max = hardMax?Math.min(v,hardMax):v; } }
       range.value=String(v);
-      if(toggle.checked){ checkResult().style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly();
     };
     const toN=()=>{ const v=Number(range.value||0);
       textInput.value = (isFinite(v)? Math.round(v).toLocaleString('ja-JP') : '');
-      if(toggle.checked){ checkResult().style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly();
     };
     textInput.addEventListener('input', toR); textInput.addEventListener('change', toR); textInput.addEventListener('blur', toR);
@@ -409,10 +411,10 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   }
   function linkNumber(n,r,{maxGrow=true}={}){
     const toR=()=>{ const v=Number(n.value||0); if(maxGrow){const m=Number(r.max||0); if(v>m){r.max=v;}} r.value=String(v);
-      if(toggle.checked){ checkResult().style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly(); };
     const toN=()=>{ n.value=r.value;
-      if(toggle.checked){ checkResult().style.display='none'; metrics.style.display='none'; }
+      if(toggle.checked){ checkResult.style.display='none'; metrics.style.display='none'; }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng'); redrawOnly(); };
     n.addEventListener('input',toR); n.addEventListener('change',toR); r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
@@ -421,21 +423,16 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
   linkNumber(I.cmr,I.cmrRange,{maxGrow:false});
   linkCurrency(I.fixed,I.fixedRange,{hardMax:2000000});
 
-  // ボタン等
+  // ボタン
   playBtn.addEventListener('click', ()=> playOnce() );
-  resetBtn.addEventListener('click', ()=>{
-    revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
-    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
-    I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
-    checkResult().style.display='none';
-    metrics.style.display = toggle.checked ? 'none' : 'grid';
-    redrawOnly();
-  });
+  resetBtn.addEventListener('click', resetAll);
+  reset2.addEventListener('click', resetAll);
+  checkBtn.addEventListener('click', ()=> doCheckAnswer() );
 
   // チャレンジ切替
   toggle.addEventListener('change', ()=>{
     reorderParameters(toggle.checked);
-    checkResult().style.display='none';
+    checkResult.style.display='none';
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; resultEl.classList.remove('ng');
     redrawOnly();
   });
@@ -450,11 +447,9 @@ canvas{ width:100%; max-width:100%; height:auto; display:block; border-radius:12
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
     I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.cmr.value=String(DEFAULTS.cmr);
+    // 通常順：売上→CMR→固定費、チャレンジは固定費の直下に配置されるが常に固定費の下に保持
     controls.append(paramSales, paramCMR, paramFixed);
-    // 「答え合わせ」ボタンのイベント
-    document.body.addEventListener('click',(e)=>{
-      if(e.target && e.target.id==='checkBtn'){ doCheckAnswer(); }
-    });
+    controls.append($('challengeBox'));
   })();
   setTimeout(layoutAndRedraw, 60);
 })();
