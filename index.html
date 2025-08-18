@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r50 -->
+<!-- internal version: r51 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -45,13 +45,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
-
 @media (max-width:480px){
   h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}
   input[type="text"],input[type="number"]{width:86px;padding:7px}
 }
-/* ここで必要売上高を太字に */
-#targetShown{font-weight:700}
+/* 必要売上高 表示を太字に（ラベル&金額） */
+#targetLabel,#targetShown{font-weight:700}
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
 </style>
 </head>
@@ -103,9 +102,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
             <button id="reset2" class="secondary" type="button">リセット</button>
           </div>
           <div id="checkResult" style="display:none;margin-top:6px">
-            <div>必要売上高：<span id="targetShown">—</span></div>
+            <div><span id="targetLabel">必要売上高（損益分岐点売上高）：</span><span id="targetShown">—</span></div>
             <div><span id="diffLabel">いまの売上高との差</span>：<span id="diff">—</span>／判定：<span id="status">—</span></div>
-            <div class="muted">±1%以内で<strong>クリア</strong>, ±5%以内は<strong>ニア</strong>。</div>
+            <!-- 説明文を差し替え -->
+            <div class="muted">※必要売上高は、固定費÷限界利益率で逆算できます。</div>
           </div>
           <div id="warnCMR0" class="muted" style="display:none;color:#8b5e00">※ 限界利益率が0%のため、どれだけ売上高があっても黒字になりません。</div>
         </div>
@@ -120,14 +120,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r50</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r51</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r50';
+  const VERSION='r51';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
@@ -248,14 +248,13 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 固定費
     drawFixed(mt,maxV,xCMArrow);
 
-    // 必要売上高ライン（答え合わせ後のみ）
+    // 必要売上高ライン（答え合わせ後のみ）— 左側表示＆青色
     if(showTargetLine && isFinite(targetLineValue)){
       const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
-      ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle='#64748b';
+      ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle='#0ea5e9';
       ctx.beginPath(); ctx.moveTo(dims.MARGIN,yT); ctx.lineTo(dims.W-dims.MARGIN-2,yT); ctx.stroke(); ctx.restore();
-      ctx.fillStyle='#334155'; ctx.textAlign='right';
-      ctx.fillText('必要売上高: '+jpy(targetLineValue), dims.W-6, yT-6);
-      ctx.textAlign='start';
+      ctx.fillStyle='#0ea5e9'; // 青文字
+      ctx.fillText('必要売上高（損益分岐点売上高）: '+jpy(targetLineValue), Math.max(6,dims.MARGIN-2), yT-6);
     }
 
     // 売上
@@ -339,7 +338,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
-  // 並び替え（既存ロジックそのまま）
+  // 並び替え（既存ロジック）
   function applyOrderChallenge(){
     $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
     $('guideCMR').textContent='② 限界利益率は何％ですか？';
@@ -418,10 +417,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
           // 同期表示：答え合わせ結果＋必要売上高ライン
           if(pendingCheck && pendingVals){
-            targetShown.textContent = pendingVals.targetText;
-            diffLabelEl.textContent = pendingVals.diffLabel;
-            diffEl.textContent = pendingVals.diffText;
-            statusEl.textContent = pendingVals.statusText;
+            $('targetShown').textContent = pendingVals.targetText;
+            $('diffLabel').textContent   = pendingVals.diffLabel;
+            $('diff').textContent        = pendingVals.diffText;
+            $('status').textContent      = pendingVals.statusText;
             checkResult.style.display='block';
             metrics.style.display='grid';
             showTargetLine = isFinite(pendingVals.targetNum);
