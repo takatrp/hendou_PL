@@ -1,21 +1,14 @@
 <!DOCTYPE html>
-<!-- internal version: r52 -->
+<!-- internal version: r53 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>ボールで学ぶ変動損益計算書</title>
 <style>
 :root{--brand:#578899;--brand-600:#4b7481;--ink:#0f172a;--line:#e5e7eb;--line-dark:#cbd5e1;--danger:#b91c1c}
 *{box-sizing:border-box}
-html,body{
-  margin:0;height:100%;width:100%;
-  position:fixed;inset:0;overflow:auto;overflow-x:hidden;
-  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
-  font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,
-       "Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
-  color:var(--ink);background:#fff;
-}
+html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:#fff}
 .page{min-height:100%;padding:16px}
 .stack{max-width:1120px;width:100%;margin:0 auto}
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
@@ -49,14 +42,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}
   input[type="text"],input[type="number"]{width:86px;padding:7px}
 }
-/* 必要売上高（ラベル＋金額）を太字に */
+/* 強調表示（損益分岐点カード） */
+.m.accent{background:#eef7fa;border-color:var(--brand);box-shadow:0 0 0 2px rgba(87,136,153,.35) inset, 0 4px 14px rgba(87,136,153,.18)}
+/* 必要売上高（ラベル＋金額）を太字 */
 #targetLabel,#targetShown{font-weight:700}
-/* ★強調スタイル（答え合わせ時のみ付与） */
-.m.accent{
-  background:#eef7fa;
-  border-color:var(--brand);
-  box-shadow:0 0 0 2px rgba(87,136,153,.35) inset, 0 4px 14px rgba(87,136,153,.18);
-}
+/* 逆算メモを目立たせる */
+.calc-note{font-weight:700;color:var(--brand);background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
 </style>
 </head>
@@ -107,11 +98,13 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
             <button id="checkBtn" class="primary" type="button">答え合わせ</button>
             <button id="reset2" class="secondary" type="button">リセット</button>
           </div>
+
           <div id="checkResult" style="display:none;margin-top:6px">
             <div><span id="targetLabel">必要売上高（損益分岐点売上高）：</span><span id="targetShown">—</span></div>
-            <div><span id="diffLabel">いまの売上高との差</span>：<span id="diff">—</span>／判定：<span id="status">—</span></div>
-            <div class="muted">※必要売上高は、固定費÷限界利益率で逆算できます。</div>
+            <div><span id="diffMsg">—</span> ／判定：<span id="status">—</span></div>
+            <div id="calcNote" class="calc-note">※必要売上高は、固定費÷限界利益率で逆算できます。</div>
           </div>
+
           <div id="warnCMR0" class="muted" style="display:none;color:#8b5e00">※ 限界利益率が0%のため、どれだけ売上高があっても黒字になりません。</div>
         </div>
 
@@ -119,21 +112,20 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           <div class="m"><div class="k">売上高 (S)</div><div id="mSales" class="v">-</div></div>
           <div class="m"><div class="k">限界利益率 (CMR)</div><div id="mCMR" class="v">-</div></div>
           <div class="m em"><div class="k">限界利益 (S×CMR)</div><div id="mCM" class="v">-</div></div>
-          <!-- ★ここにIDを付与して強調制御 -->
           <div class="m" id="mBEPcard"><div class="k">損益分岐点売上高 (FC÷CMR)</div><div id="mBEP" class="v">-</div></div>
           <div class="m em"><div class="k">経常利益 ≒ 限界利益−固定費</div><div id="mProfit" class="v">-</div></div>
         </div>
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r52</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r53</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r52';
+  const VERSION='r53';
   const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
   const $=id=>document.getElementById(id);
 
@@ -181,7 +173,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
   const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
   const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
-  const targetShown=$('targetShown'), diffEl=$('diff'), statusEl=$('status'), diffLabelEl=$('diffLabel');
+  const targetShown=$('targetShown'), statusEl=$('status');
+  const diffMsgEl=$('diffMsg');
   const mBEPcard=$('mBEPcard');
 
   const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
@@ -210,7 +203,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
     const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
 
-    if(/iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820)){
+    if(IS_IOS_MOBILE){
       const startX = 0;
       const width  = (barR - startX);
       ctx.fillStyle='rgba(87,136,153,0.22)';
@@ -344,7 +337,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
-  // 並び替えは従来通り
+  // 並び替え（従来通り）
   function applyOrderChallenge(){
     $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
     $('guideCMR').textContent='② 限界利益率は何％ですか？';
@@ -368,20 +361,23 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     mBEPcard.classList.remove('accent');
   }
 
-  // 答え合わせ：値計算（表示は着地後）
+  // 答え合わせ（表示は着地後に同期）
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
     const diffRaw = mt.sales - target;
     const diffAbs = Math.abs(diffRaw);
-    const label = diffRaw < 0 ? '不足売上高' : diffRaw > 0 ? '余裕売上高' : '不足/余裕なし';
     const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
+
+    // 文言をここで作成
+    let msg='差はありません';
+    if(diffRaw < 0) msg = 'あと ' + jpy(diffAbs) + ' 不足しています';
+    else if(diffRaw > 0) msg = jpy(diffAbs) + ' 余裕がありました';
 
     pendingVals = {
       targetText: isFinite(target)? jpy(target) : '—',
       targetNum:  isFinite(target)? target : NaN,
-      diffLabel:  label,
-      diffText:   isFinite(diffAbs)? jpy(diffAbs) : '—',
+      msg:        msg,
       statusText: isFinite(pct)? ('誤差 '+pct.toFixed(1)+'%') : '誤差 —'
     };
     pendingCheck=true;
@@ -427,14 +423,13 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           // 同期表示：答え合わせ結果＋必要売上高ライン＋カード強調
           if(pendingCheck && pendingVals){
             targetShown.textContent = pendingVals.targetText;
-            diffLabelEl.textContent = pendingVals.diffLabel;
-            diffEl.textContent      = pendingVals.diffText;
+            diffMsgEl.textContent   = pendingVals.msg;
             statusEl.textContent    = pendingVals.statusText;
             checkResult.style.display='block';
             metrics.style.display='grid';
             showTargetLine = isFinite(pendingVals.targetNum);
             targetLineValue = pendingVals.targetNum;
-            mBEPcard.classList.add('accent'); // ★強調
+            mBEPcard.classList.add('accent');
             pendingCheck=false; pendingVals=null;
             redrawOnly(); // ライン反映
           }
