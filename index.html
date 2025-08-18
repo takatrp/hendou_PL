@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r53 -->
+<!-- internal version: r54 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -74,8 +74,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <div class="card" id="cardCtrl">
         <div class="controls" id="controls">
           <label class="f" id="paramSales"><div class="row1"><span class="ttl">売上高（S）</span>
-            <input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,300,000"></div>
-            <div class="row2"><input id="salesRange" type="range" min="0" max="5000000" step="1000" value="1300000"></div>
+            <input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,000,000"></div>
+            <div class="row2"><input id="salesRange" type="range" min="0" max="5000000" step="1000" value="1000000"></div>
           </label>
 
           <label class="f" id="paramCMR"><div class="row1"><span class="ttl">限界利益率（CMR, %）</span>
@@ -84,8 +84,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           </label>
 
           <label class="f" id="paramFixed"><div class="row1"><span class="ttl">固定費（FC）</span>
-            <input id="fixed" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,000,000"></div>
-            <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="1000000"></div>
+            <input id="fixed" type="text" inputmode="numeric" pattern="[0-9,]*" value="700,000"></div>
+            <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="700000"></div>
           </label>
 
           <div class="challenge" id="challengeBox"><label><input type="checkbox" id="challengeToggle"> 必要売上高を考えてみましょう</label></div>
@@ -101,7 +101,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
           <div id="checkResult" style="display:none;margin-top:6px">
             <div><span id="targetLabel">必要売上高（損益分岐点売上高）：</span><span id="targetShown">—</span></div>
-            <div><span id="diffMsg">—</span> ／判定：<span id="status">—</span></div>
+            <!-- 判定：ラベルは削除し、誤差○○%のみ表示 -->
+            <div><span id="diffMsg">—</span> ／<span id="status">—</span></div>
             <div id="calcNote" class="calc-note">※必要売上高は、固定費÷限界利益率で逆算できます。</div>
           </div>
 
@@ -118,15 +119,15 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r53</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r54</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r53';
-  const DEFAULTS={sales:1300000, cmr:60, fixed:1000000};
+  const VERSION='r54';
+  const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
   const $=id=>document.getElementById(id);
 
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
@@ -349,7 +350,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     controls.append(checkRow);   checkRow.style.display='flex';
     controls.append(checkResult);
     metrics.style.display='none';
-    mBEPcard.classList.remove('accent');
   }
   function applyOrderNormal(){
     guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
@@ -358,7 +358,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     controls.append(checkResult); checkResult.style.display='none';
     metrics.style.display='grid';
     showTargetLine=false; targetLineValue=null;
-    mBEPcard.classList.remove('accent');
   }
 
   // 答え合わせ（表示は着地後に同期）
@@ -369,10 +368,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const diffAbs = Math.abs(diffRaw);
     const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
 
-    // 文言をここで作成
+    // 文言：未達/超過
     let msg='差はありません';
     if(diffRaw < 0) msg = 'あと ' + jpy(diffAbs) + ' 不足しています';
-    else if(diffRaw > 0) msg = jpy(diffAbs) + ' 余裕がありました';
+    else if(diffRaw > 0) msg = 'あと ' + jpy(diffAbs) + ' 余裕があります';
 
     pendingVals = {
       targetText: isFinite(target)? jpy(target) : '—',
@@ -392,7 +391,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
     I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
     metrics.style.display = toggle.checked ? 'none' : 'grid';
-    mBEPcard.classList.remove('accent');
     redrawOnly();
   }
 
@@ -420,16 +418,15 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
           else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
 
-          // 同期表示：答え合わせ結果＋必要売上高ライン＋カード強調
+          // 同期表示：答え合わせ結果＋必要売上高ライン
           if(pendingCheck && pendingVals){
-            targetShown.textContent = pendingVals.targetText;
+            $('targetShown').textContent = pendingVals.targetText;
             diffMsgEl.textContent   = pendingVals.msg;
-            statusEl.textContent    = pendingVals.statusText;
+            statusEl.textContent    = pendingVals.statusText; // 『判定：』は付けない
             checkResult.style.display='block';
             metrics.style.display='grid';
             showTargetLine = isFinite(pendingVals.targetNum);
             targetLineValue = pendingVals.targetNum;
-            mBEPcard.classList.add('accent');
             pendingCheck=false; pendingVals=null;
             redrawOnly(); // ライン反映
           }
@@ -441,10 +438,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     requestAnimationFrame(frame);
   }
 
-  // 入力変更時は答え合わせ表示・強調をクリア
+  // 入力変更時は答え合わせ表示をクリア
   function clearCheckVisuals(){
     checkResult.style.display='none'; metrics.style.display = toggle.checked ? 'none' : 'grid';
-    showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
+    showTargetLine=false; targetLineValue=null; pendingCheck=false; pendingVals=null;
   }
   function linkCurrency(t, r, hardMax=null){
     const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
