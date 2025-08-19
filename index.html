@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r62 (y軸目盛りの数値を薄色表示) -->
+<!-- internal version: r63 (黒字/余裕ラベルの縦矢印を黒に) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -115,17 +115,17 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r62</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r63</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r62';
+  const VERSION='r63';
   const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
   const BLUE='#0ea5e9';
-  const AXIS_TICK_COLOR='rgba(71,85,105,0.40)'; // ← 左軸の数値を薄く
+  const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
   const $=id=>document.getElementById(id);
 
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
@@ -177,10 +177,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
+    // 上矢
     ctx.beginPath(); ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
+    // 下矢
     ctx.beginPath(); ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
@@ -220,9 +222,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り（グリッド＆左軸の金額ラベルを薄色で）
+    // 目盛り（薄色の左軸ラベル）
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.fillStyle=AXIS_TICK_COLOR; // ← ココを薄色に
+    ctx.fillStyle=AXIS_TICK_COLOR;
     for(let i=0;i<=5;i++){
       const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
       ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
@@ -248,9 +250,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const yTop=Math.min(sY,yT), yBot=Math.max(sY,yT);
       const diffS = mt.sales - targetLineValue;
       const xLeft = Math.max(dims.MARGIN+18, 22);
-      const colorArrow = diffS>=0 ? BLUE : (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+      // ★ 余裕（diffS>=0）の矢印色は黒、それ以外は赤
+      const danger = (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+      const colorArrow = diffS>=0 ? '#000' : danger;
       doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
-      const labelColor = diffS>=0 ? '#000' : colorArrow; // 余裕=黒、不足=赤
+      // ラベル色：余裕=黒、不足=赤
+      const labelColor = diffS>=0 ? '#000' : colorArrow;
       ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
       ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
@@ -312,16 +317,18 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // 黒字/赤字（固定費 vs 限界利益）— 黒字ラベルは黒文字
+    // 黒字/赤字（固定費 vs 限界利益）— 黒字時は矢印も黒
     if(revealedByPlay){
       const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
       const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
       const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
       const p=mt.cm-mt.fixed;
-      const color=p>0?brand():p<0?(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c'):'#334155';
-      doubleArrowVertical(xNearBall, yTop, yBot, color);
+      const danger=(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+      // ★ 黒字のときは矢印色=黒、赤字は赤、±0はグレー
+      const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
+      doubleArrowVertical(xNearBall, yTop, yBot, arrowColor);
       const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
-      const labelColor = p>0 ? '#000' : (p<0 ? color : '#334155');
+      const labelColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
       ctx.save(); ctx.fillStyle=labelColor; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
       const wlbl=ctx.measureText(txt).width;
       ctx.fillText(txt, Math.min(dims.W-6-wlbl,xNearBall+10), (yTop+yBot)/2);
