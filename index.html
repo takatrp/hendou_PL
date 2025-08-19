@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r59 (r57ベース: 上部説明更新／答え合わせの下線色／売上↔必要売上の差矢印) -->
+<!-- internal version: r62 (y軸目盛りの数値を薄色表示) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -42,7 +42,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:var(--brand);background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
-/* 答え合わせ下線（帯と一貫色） */
 .diff-uline-blue{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#0ea5e9;text-underline-offset:2px}
 .diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
 @media (max-width:480px){h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}input[type="text"],input[type="number"]{width:86px;padding:7px}}
@@ -110,23 +109,23 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           <div class="m"><div class="k">売上高 (S)</div><div id="mSales" class="v">-</div></div>
           <div class="m"><div class="k">限界利益率 (CMR)</div><div id="mCMR" class="v">-</div></div>
           <div class="m em"><div class="k">限界利益 (S×CMR)</div><div id="mCM" class="v">-</div></div>
-          <!-- 強調対象（答え合わせ時にaccent付与） -->
           <div class="m" id="mBEPcard"><div class="k">損益分岐点売上高 (FC÷CMR)</div><div id="mBEP" class="v">-</div></div>
           <div class="m em"><div class="k">経常利益 ≒ 限界利益−固定費</div><div id="mProfit" class="v">-</div></div>
         </div>
       </div>
     </div>
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r59</small>
+      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r62</small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r59';
+  const VERSION='r62';
   const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
   const BLUE='#0ea5e9';
+  const AXIS_TICK_COLOR='rgba(71,85,105,0.40)'; // ← 左軸の数値を薄く
   const $=id=>document.getElementById(id);
 
   const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
@@ -135,7 +134,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // 答え合わせ同期 & ライン/帯の表示制御
   let pendingCheck=false, pendingVals=null;
   let showTargetLine=false, targetLineValue=null;
   let showMOSBand=false;
@@ -179,19 +177,16 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
-    // 上矢
     ctx.beginPath(); ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
-    // 下矢
     ctx.beginPath(); ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
   }
 
-  // 固定費の描画（スマホ:帯はキャンバス左端まで）
   function drawFixed(mt,maxV,xCMArrow){
     const BR=brand();
     const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
@@ -225,9 +220,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り
+    // 目盛り（グリッド＆左軸の金額ラベルを薄色で）
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.fillStyle='#475569';
+    ctx.fillStyle=AXIS_TICK_COLOR; // ← ココを薄色に
     for(let i=0;i<=5;i++){
       const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
       ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
@@ -241,7 +236,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 固定費帯／矩形
     drawFixed(mt,maxV,xCMArrow);
 
-    // 必要売上高ライン（答え合わせ後のみ）— 左側表示＆青色
+    // 必要売上高ライン（答え合わせ後のみ）＋ 売上↔必要売上の差矢印
     if(showTargetLine && isFinite(targetLineValue)){
       const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
       ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
@@ -249,15 +244,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.fillStyle=BLUE;
       ctx.fillText('必要売上高（損益分岐点売上高）: '+jpy(targetLineValue), Math.max(6,dims.MARGIN-2), yT-6);
 
-      // ★ 売上高 ↔ 必要売上高 の差矢印（左側）
       const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
       const yTop=Math.min(sY,yT), yBot=Math.max(sY,yT);
       const diffS = mt.sales - targetLineValue;
       const xLeft = Math.max(dims.MARGIN+18, 22);
-      const color = diffS>=0 ? BLUE : getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c';
-      doubleArrowVertical(xLeft, yTop, yBot, color);
-      // ラベル
-      ctx.save(); ctx.fillStyle=color; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+      const colorArrow = diffS>=0 ? BLUE : (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+      doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
+      const labelColor = diffS>=0 ? '#000' : colorArrow; // 余裕=黒、不足=赤
+      ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
       ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
       ctx.restore();
@@ -272,7 +266,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益（横点線＋左寄せラベル＋上向き矢印）
+    // 限界利益
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=BLUE;
@@ -288,7 +282,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.restore();
     }
 
-    // ★ 安全余裕額（MOS）帯：売上ラインとBEPラインの間（答え合わせ後のみ）
+    // 安全余裕帯
     if(showMOSBand && showTargetLine && isFinite(targetLineValue)){
       const yS = sY;
       const yB = dims.GROUND_Y - sy(targetLineValue, maxV);
@@ -304,7 +298,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     ctx.fillText('限界利益率 '+mt.cmrPct.toFixed(1)+'%', xMid, dims.H-10);
     ctx.textAlign='start';
 
-    // 待機ボール（スマホは小さめ）
+    // ボール（待機）
     const rBall=(window.innerWidth<820)?8:9;
     if(!playing){
       const y0=dims.GROUND_Y-sH;
@@ -312,21 +306,23 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.strokeStyle='#94a3b8'; ctx.stroke();
     }
 
-    // 残像（頂点）
+    // 残像
     if(apexMarkerY!=null){
       ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // プレイ後：固定費と限界利益の差（ボール右）
+    // 黒字/赤字（固定費 vs 限界利益）— 黒字ラベルは黒文字
     if(revealedByPlay){
       const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
       const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
       const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
-      const p=mt.cm-mt.fixed; const color=p>0?brand():p<0?getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c':'#334155';
+      const p=mt.cm-mt.fixed;
+      const color=p>0?brand():p<0?(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c'):'#334155';
       doubleArrowVertical(xNearBall, yTop, yBot, color);
       const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
-      ctx.save(); ctx.fillStyle=color; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
+      const labelColor = p>0 ? '#000' : (p<0 ? color : '#334155');
+      ctx.save(); ctx.fillStyle=labelColor; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
       const wlbl=ctx.measureText(txt).width;
       ctx.fillText(txt, Math.min(dims.W-6-wlbl,xNearBall+10), (yTop+yBot)/2);
       ctx.restore();
@@ -343,7 +339,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
-  // 並び替え（チャレンジ）
   function applyOrderChallenge(){
     $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
     $('guideCMR').textContent='② 限界利益率は何％ですか？';
@@ -367,7 +362,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     mBEPcard.classList.remove('accent');
   }
 
-  // 答え合わせ
   function doCheckAnswer(){
     const mt=calc();
     const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
@@ -389,7 +383,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     if(!playing) playOnce();
   }
 
-  // リセット
   function resetAll(){
     revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
     pendingCheck=false; pendingVals=null; checkResult.style.display='none';
@@ -401,7 +394,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     redrawOnly();
   }
 
-  // プレイ
   function playOnce(){
     if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
     const mt=calc();
@@ -425,7 +417,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
           else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
           else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
 
-          // 同期表示：答え合わせ結果＋必要売上高ライン＋カード強調＋MOS帯
           if(pendingCheck && pendingVals){
             targetShown.textContent = pendingVals.targetText;
             diffMsgEl.innerHTML     = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
@@ -434,10 +425,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
             metrics.style.display='grid';
             showTargetLine = isFinite(pendingVals.targetNum);
             targetLineValue = pendingVals.targetNum;
-            showMOSBand = showTargetLine; // 安全余裕帯
+            showMOSBand = showTargetLine;
             mBEPcard.classList.add('accent');
             pendingCheck=false; pendingVals=null;
-            redrawOnly(); // 線・帯・差矢印（売上↔必要売上）反映もここで
+            redrawOnly();
           }
           playing=false; return;
         }
@@ -447,7 +438,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     requestAnimationFrame(frame);
   }
 
-  // 入力変更時は答え合わせ表示・強調をクリア
   function clearCheckVisuals(){
     checkResult.style.display='none'; metrics.style.display = toggle.checked ? 'none' : 'grid';
     showTargetLine=false; targetLineValue=null; showMOSBand=false;
@@ -481,7 +471,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   linkNumber(I.cmr,I.cmrRange);
   linkCurrency(I.fixed,I.fixedRange,2000000);
 
-  // チャレンジ切替
   $('challengeToggle').addEventListener('change', ()=>{
     if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
@@ -489,13 +478,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     redrawOnly();
   });
 
-  // ボタン
   $('play').addEventListener('click', ()=>playOnce());
   $('reset').addEventListener('click', resetAll);
   $('reset2').addEventListener('click', resetAll);
   $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
 
-  // レイアウト
   function computeDims(){
     const parentW = cv.parentElement.clientWidth || window.innerWidth;
     const vpW = window.innerWidth;
@@ -518,7 +505,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   if('ResizeObserver' in window){ new ResizeObserver(layout).observe(cv.parentElement); }
   ['load','pageshow','orientationchange','resize'].forEach(ev=>addEventListener(ev,()=>requestAnimationFrame(layout)));
 
-  // 初期化
   (function init(){
     I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
     I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
