@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r63c (robust init + fixes + logo/favicon/footer link) -->
+<!-- internal version: r63d (ヘッダー削除＋タイトル横にロゴ配置／favicon／フッターリンク) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -16,17 +16,17 @@ html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;o
 .page{min-height:100%;padding:16px}
 .stack{max-width:1120px;width:100%;margin:0 auto}
 
-/* ▼ ヘッダー（ロゴ表示） */
-.site-header{display:flex;align-items:center;gap:12px;padding:8px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
-.site-logo{height:48px;width:auto;display:block}
-.site-title{font-size:18px;font-weight:700;color:#222}
-@media (max-width:420px){.site-title{font-size:16px}}
-
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
 @media (min-width:960px){.grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}}
 @media (max-width:959.9px) and (orientation:landscape){.grid-main{grid-template-columns:1fr 1fr}}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
-h1{font-size:18px;margin:0 0 8px}
+
+/* ▼ タイトル行（赤枠位置）にロゴを配置 */
+.title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.title-logo{height:28px;width:auto;display:block}     /* 必要なら 24〜36px に調整可 */
+h1{font-size:18px;margin:0}
+
+/* 既存スタイル */
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
@@ -50,9 +50,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 .m.accent{background:#eef7fa;border-color:var(--brand);box-shadow:0 0 0 2px rgba(87,136,153,.35) inset, 0 4px 14px rgba(87,136,153,.18)}
-/* ▼ ここは .m の中の em要素ではなく .m と .em の複合クラス */
 .m.em{background:#eef7fa}
-
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:#578899;background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 
@@ -64,6 +62,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
 
 @media (max-width:480px){
+  .title-logo{height:24px}
   h1{font-size:17px}
   .card{padding:10px}
   .note-top{font-size:12px}
@@ -73,16 +72,16 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 </head>
 <body>
 <div class="page">
-  <!-- ▼ ロゴ付きヘッダー -->
-  <header class="site-header" role="banner" aria-label="サイトヘッダー">
-    <img src="ロゴ.jpg" alt="松本会計ロゴ" class="site-logo">
-    <div class="site-title">オリジナルツール</div>
-  </header>
-
   <div class="stack">
     <div class="grid-main">
       <div class="card" id="cardGraph">
-        <h1>ボールで学ぶ変動損益計算書</h1>
+
+        <!-- ▼ 赤枠位置：タイトル行にロゴを配置（上部帯は削除済み） -->
+        <div class="title-row">
+          <img src="ロゴ.jpg" alt="松本会計ロゴ" class="title-logo" />
+          <h1>ボールで学ぶ変動損益計算書</h1>
+        </div>
+
         <div class="note-top">
           ・固定費：越えるべきハードルの高さ<br>
           ・売上高：ボールを落とす高さ<br>
@@ -150,7 +149,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63c
+        All Rights Reserved. / r63d
       </small>
     </div>
   </div>
@@ -168,7 +167,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r63c';
+    const VERSION='r63d';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -178,15 +177,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
     const cv=$('cv');
-    if(!cv){
-      console.error('[r63c] canvas#cv が見つかりません。HTML構造をご確認ください。');
-      return;
-    }
+    if(!cv){ console.error('[r63d] canvas#cv が見つかりません。'); return; }
     const ctx=cv.getContext && cv.getContext('2d');
-    if(!ctx){
-      console.error('[r63c] 2Dコンテキストが取得できません。ブラウザ互換性をご確認ください。');
-      return;
-    }
+    if(!ctx){ console.error('[r63d] 2Dコンテキストが取得できません。'); return; }
 
     let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
@@ -209,13 +202,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
     const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
     const mBEPcard=$('mBEPcard');
-
-    // 念のため主要要素の存在チェック
-    const requiredEls = [I.sales,I.cmr,I.fixed,I.salesRange,I.cmrRange,I.fixedRange,toggle,metrics,controls,challengeBox,checkBtn,reset2];
-    if(requiredEls.some(el=>!el)){
-      console.error('[r63c] 必須DOMのいずれかが見つかりません。idの綴りをご確認ください。', { I, toggle, metrics, controls });
-      return;
-    }
 
     const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
 
@@ -240,12 +226,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
       ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
       const h=8;
-      // 上矢
       ctx.beginPath(); ctx.moveTo(x,yTop);
       ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
       ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
       ctx.closePath(); ctx.fill();
-      // 下矢
       ctx.beginPath(); ctx.moveTo(x,yBot);
       ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
       ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
@@ -285,7 +269,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       // 地面
       ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-      // 目盛り（薄色の左軸ラベル）
+      // 目盛り
       ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
       ctx.fillStyle=AXIS_TICK_COLOR;
       for(let i=0;i<=5;i++){
@@ -298,10 +282,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const xSalesArrow=dims.W-dims.MARGIN-18;
       const xCMArrow=xSalesArrow-28;
 
-      // 固定費帯／矩形
+      // 固定費帯
       drawFixed(mt,maxV,xCMArrow);
 
-      // 必要売上高ライン（答え合わせ後のみ）＋ 売上↔必要売上の差矢印
+      // 必要売上高ライン
       if(showTargetLine && isFinite(targetLineValue)){
         const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
         ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
@@ -314,16 +298,16 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         const diffS = mt.sales - targetLineValue;
         const xLeft = Math.max(dims.MARGIN+18, 22);
         const danger = (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-        const colorArrow = diffS>=0 ? '#000' : danger;       // 余裕=黒 / 不足=赤
+        const colorArrow = diffS>=0 ? '#000' : danger;
         doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
-        const labelColor = diffS>=0 ? '#000' : colorArrow;   // ラベル色も同様
+        const labelColor = diffS>=0 ? '#000' : colorArrow;
         ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
         const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
         ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
         ctx.restore();
       }
 
-      // 売上（横点線＋右寄せラベル＋下向き矢印）
+      // 売上
       const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
       ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
@@ -372,20 +356,19 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         ctx.strokeStyle='#94a3b8'; ctx.stroke();
       }
 
-      // 残像
+      // 残像 & 黒字/赤字表示
       if(apexMarkerY!=null){
         ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
         ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
       }
-
-      // 黒字/赤字（固定費 vs 限界利益）
       if(revealedByPlay){
-        const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
+        const bH2=sy(mt.cm,maxV), bY2=dims.GROUND_Y-bH2;
+        const hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
         const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
         const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
         const p=mt.cm-mt.fixed;
         const danger=(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-        const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155'); // 黒字=黒／赤字=赤／±0=グレー
+        const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
         doubleArrowVertical(xNearBall, yTop, yBot, arrowColor);
         const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
         const labelColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
@@ -402,8 +385,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       $('mCM').textContent=jpy(mt.cm);
       $('mBEP').textContent=isFinite(mt.bep)?jpy(mt.bep):'—';
       $('mProfit').textContent=jpy(mt.profit);
-      const warn=$('warnCMR0');
-      if(warn) warn.style.display=(mt.cmr<=0)?'block':'none';
+      const warn=$('warnCMR0'); if(warn) warn.style.display=(mt.cmr<=0)?'block':'none';
     }
     function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
@@ -576,7 +558,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r63c] ResizeObserver が初期化できませんでした:', e); }
+      }catch(e){ console.warn('[r63d] ResizeObserver 初期化失敗:', e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
