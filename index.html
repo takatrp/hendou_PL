@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r63a (ロゴ/ファビコン追加・フッターリンク化) -->
+<!-- internal version: r63b (ロゴ/ファビコン/フッターリンク化) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -51,12 +51,21 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 .m.accent{background:#eef7fa;border-color:var(--brand);box-shadow:0 0 0 2px rgba(87,136,153,.35) inset, 0 4px 14px rgba(87,136,153,.18)}
 #targetLabel,#targetShown{font-weight:700}
-.calc-note{font-weight:700;color:var(--brand);background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
+.calc-note{font-weight:700;color:#578899;background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
+
+/* ▼ フッター（リンクは文字色そのまま＋下線） */
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
-.footer a{color:inherit;text-decoration:underline;text-underline-offset:2px} /* 文字色そのまま＋下線 */
+.footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+
 .diff-uline-blue{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#0ea5e9;text-underline-offset:2px}
 .diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
-@media (max-width:480px){h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}input[type="text"],input[type="number"]{width:86px;padding:7px}}
+
+@media (max-width:480px){
+  h1{font-size:17px}
+  .card{padding:10px}
+  .note-top{font-size:12px}
+  input[type="text"],input[type="number"]{width:86px;padding:7px}
+}
 </style>
 </head>
 <body>
@@ -138,7 +147,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63a
+        All Rights Reserved. / r63b
       </small>
     </div>
   </div>
@@ -146,7 +155,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
 <script>
 (function(){
-  const VERSION='r63a';
+  const VERSION='r63b';
   const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
   const BLUE='#0ea5e9';
   const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -189,14 +198,13 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
 
   function arrow(x1,y1,x2,y2,c){
-    const ctxL=ctx;
-    ctxL.strokeStyle=c; ctxL.fillStyle=c; ctxL.lineWidth=2;
-    ctxL.beginPath(); ctxL.moveTo(x1,y1); ctxL.lineTo(x2,y2); ctxL.stroke();
+    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
     const a=Math.atan2(y2-y1,x2-x1),h=8;
-    ctxL.beginPath(); ctxL.moveTo(x2,y2);
-    ctxL.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
-    ctxL.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
-    ctxL.closePath(); ctxL.fill();
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+    ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+    ctx.closePath(); ctx.fill();
   }
   function doubleArrowVertical(x,yTop,yBot,color){
     ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
