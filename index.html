@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r63b (ロゴ/ファビコン/フッターリンク化) -->
+<!-- internal version: r63c (robust init + fixes + logo/favicon/footer link) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -50,6 +50,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .m{background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:10px}
 .m .k{color:#334155;font-size:12px}.m .v{font-weight:700;margin-top:4px}
 .m.accent{background:#eef7fa;border-color:var(--brand);box-shadow:0 0 0 2px rgba(87,136,153,.35) inset, 0 4px 14px rgba(87,136,153,.18)}
+/* ▼ ここは .m の中の em要素ではなく .m と .em の複合クラス */
+.m.em{background:#eef7fa}
+
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:#578899;background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 
@@ -147,408 +150,445 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63b
+        All Rights Reserved. / r63c
       </small>
     </div>
   </div>
 </div>
 
 <script>
+'use strict';
 (function(){
-  const VERSION='r63b';
-  const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
-  const BLUE='#0ea5e9';
-  const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
-  const $=id=>document.getElementById(id);
-
-  const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
-     || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
-
-  const cv=$('cv'), ctx=cv.getContext('2d');
-  let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
-
-  let pendingCheck=false, pendingVals=null;
-  let showTargetLine=false, targetLineValue=null;
-  let showMOSBand=false;
-
-  const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
-  const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
-  const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
-  const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
-
-  const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
-            salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
-  const resultEl=$('result');
-  const toggle=$('challengeToggle'), metrics=$('metrics');
-  const controls=$('controls'), challengeBox=$('challengeBox');
-  const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
-  const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
-  const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
-  const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
-  const mBEPcard=$('mBEPcard');
-
-  const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
-
-  function calc(){
-    const sales=Math.max(0,parseComma(I.sales.value));
-    const cmrPct=Math.max(0,Math.min(100,Number(I.cmr.value||0)));
-    const fixed=Math.max(0,parseComma(I.fixed.value));
-    const cmr=cmrPct/100, cm=sales*cmr, profit=cm-fixed, bep=cmr>0?Math.ceil(fixed/cmr):Infinity;
-    return {sales,cmrPct,cmr,cm,profit,bep,fixed};
-  }
-
-  function arrow(x1,y1,x2,y2,c){
-    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-    const a=Math.atan2(y2-y1,x2-x1),h=8;
-    ctx.beginPath(); ctx.moveTo(x2,y2);
-    ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
-    ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
-    ctx.closePath(); ctx.fill();
-  }
-  function doubleArrowVertical(x,yTop,yBot,color){
-    ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
-    const h=8;
-    // 上矢
-    ctx.beginPath(); ctx.moveTo(x,yTop);
-    ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
-    ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
-    ctx.closePath(); ctx.fill();
-    // 下矢
-    ctx.beginPath(); ctx.moveTo(x,yBot);
-    ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
-    ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
-    ctx.closePath(); ctx.fill();
-  }
-
-  function drawFixed(mt,maxV,xCMArrow){
-    const BR=brand();
-    const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
-    const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
-
-    if(IS_IOS_MOBILE){
-      const startX = 0;
-      const width  = (barR - startX);
-      ctx.fillStyle='rgba(87,136,153,0.22)';
-      ctx.fillRect(startX, y, width, hgt);
-      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,dims.MARGIN-2), y-8);
-    }else{
-      const L = barL+40;
-      const Rlimit = xCMArrow? (xCMArrow-30) : (barR-40);
-      const R = Math.max(L+24, Math.min(barR-40, Rlimit));
-      const W = R-L;
-      ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(L,y,W,hgt);
-      ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(L,y,W,hgt);
-      ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,L), y-8);
+  const onReady = (fn) => {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, { once:true });
+    } else {
+      fn();
     }
-  }
+  };
 
-  function draw(mt){
-    const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed, isFinite(targetLineValue)?targetLineValue:0)*1.15;
-    const hide=toggle.checked && !revealedByPlay;
+  onReady(() => {
+    const VERSION='r63c';
+    const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
+    const BLUE='#0ea5e9';
+    const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
+    const $=id=>document.getElementById(id);
 
-    ctx.clearRect(0,0,dims.W,dims.H);
-    ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H);
-    ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+    const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
+       || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-    // 地面
-    ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
-
-    // 目盛り（薄色の左軸ラベル）
-    ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-    ctx.fillStyle=AXIS_TICK_COLOR;
-    for(let i=0;i<=5;i++){
-      const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
-      ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
-      ctx.fillText(jpy(val), 6, y-2);
+    const cv=$('cv');
+    if(!cv){
+      console.error('[r63c] canvas#cv が見つかりません。HTML構造をご確認ください。');
+      return;
     }
-    ctx.setLineDash([]);
-
-    const xSalesArrow=dims.W-dims.MARGIN-18;
-    const xCMArrow=xSalesArrow-28;
-
-    // 固定費帯／矩形
-    drawFixed(mt,maxV,xCMArrow);
-
-    // 必要売上高ライン（答え合わせ後のみ）＋ 売上↔必要売上の差矢印
-    if(showTargetLine && isFinite(targetLineValue)){
-      const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
-      ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
-      ctx.beginPath(); ctx.moveTo(dims.MARGIN,yT); ctx.lineTo(dims.W-dims.MARGIN-2,yT); ctx.stroke(); ctx.restore();
-      ctx.fillStyle=BLUE;
-      ctx.fillText('必要売上高（損益分岐点売上高）: '+jpy(targetLineValue), Math.max(6,dims.MARGIN-2), yT-6);
-
-      const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
-      const yTop=Math.min(sY,yT), yBot=Math.max(sY,yT);
-      const diffS = mt.sales - targetLineValue;
-      const xLeft = Math.max(dims.MARGIN+18, 22);
-      const danger = (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-      const colorArrow = diffS>=0 ? '#000' : danger;       // 余裕=黒 / 不足=赤
-      doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
-      const labelColor = diffS>=0 ? '#000' : colorArrow;   // ラベル色も同様
-      ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
-      const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
-      ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
-      ctx.restore();
+    const ctx=cv.getContext && cv.getContext('2d');
+    if(!ctx){
+      console.error('[r63c] 2Dコンテキストが取得できません。ブラウザ互換性をご確認ください。');
+      return;
     }
 
-    // 売上（横点線＋右寄せラベル＋下向き矢印）
-    const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
-    ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
-    ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
-    const tSales='売上高: '+(hide?'???':jpy(mt.sales)); const ySales=sY-6;
-    if(hide){ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xCMArrow-6, ySales); ctx.restore(); }
-    else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
-    arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
+    let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-    // 限界利益
-    const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
-    if(!hide){
-      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=BLUE;
-      ctx.beginPath(); ctx.moveTo(dims.MARGIN,bY); ctx.lineTo(xCMArrow-2,bY); ctx.stroke(); ctx.restore();
-      ctx.fillStyle=BLUE;
-      const tCM='限界利益: '+jpy(b); const w=ctx.measureText(tCM).width;
-      const xText=Math.min(dims.W-dims.MARGIN-w, xCMArrow+8);
-      ctx.fillText(tCM, xText, bY-6);
-      arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, brand());
-    }else{
-      ctx.save(); ctx.fillStyle=BLUE; ctx.textAlign='right';
-      ctx.fillText('限界利益: ???', xCMArrow-6, ySales+16);
-      ctx.restore();
+    let pendingCheck=false, pendingVals=null;
+    let showTargetLine=false, targetLineValue=null;
+    let showMOSBand=false;
+
+    const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
+    const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
+    const jpy=v=>isFinite(v)?v.toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}):'—';
+    const brand=()=>getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()||'#578899';
+
+    const I={ sales:$('sales'), cmr:$('cmr'), fixed:$('fixed'),
+              salesRange:$('salesRange'), cmrRange:$('cmrRange'), fixedRange:$('fixedRange') };
+    const resultEl=$('result');
+    const toggle=$('challengeToggle'), metrics=$('metrics');
+    const controls=$('controls'), challengeBox=$('challengeBox');
+    const paramSales=$('paramSales'), paramCMR=$('paramCMR'), paramFixed=$('paramFixed');
+    const guideFixed=$('guideFixed'), guideCMR=$('guideCMR'), guideSales=$('guideSales');
+    const checkRow=$('checkRow'), checkBtn=$('checkBtn'), reset2=$('reset2'), checkResult=$('checkResult');
+    const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
+    const mBEPcard=$('mBEPcard');
+
+    // 念のため主要要素の存在チェック
+    const requiredEls = [I.sales,I.cmr,I.fixed,I.salesRange,I.cmrRange,I.fixedRange,toggle,metrics,controls,challengeBox,checkBtn,reset2];
+    if(requiredEls.some(el=>!el)){
+      console.error('[r63c] 必須DOMのいずれかが見つかりません。idの綴りをご確認ください。', { I, toggle, metrics, controls });
+      return;
     }
 
-    // 安全余裕帯
-    if(showMOSBand && showTargetLine && isFinite(targetLineValue)){
-      const yS = sY;
-      const yB = dims.GROUND_Y - sy(targetLineValue, maxV);
-      const yTop=Math.min(yS,yB), yBot=Math.max(yS,yB);
-      const positive = (mt.sales - targetLineValue) >= 0;
-      ctx.fillStyle = positive ? 'rgba(16,123,91,0.12)' : 'rgba(185,28,28,0.12)';
-      ctx.fillRect(dims.MARGIN, yTop, (dims.W - dims.MARGIN*2), yBot - yTop);
+    const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
+
+    function calc(){
+      const sales=Math.max(0,parseComma(I.sales.value));
+      const cmrPct=Math.max(0,Math.min(100,Number(I.cmr.value||0)));
+      const fixed=Math.max(0,parseComma(I.fixed.value));
+      const cmr=cmrPct/100, cm=sales*cmr, profit=cm-fixed, bep=cmr>0?Math.ceil(fixed/cmr):Infinity;
+      return {sales,cmrPct,cmr,cm,profit,bep,fixed};
     }
 
-    // 下部中央：限界利益率
-    const xMid=(xSalesArrow+xCMArrow)/2;
-    ctx.fillStyle='#334155'; ctx.textAlign='center';
-    ctx.fillText('限界利益率 '+mt.cmrPct.toFixed(1)+'%', xMid, dims.H-10);
-    ctx.textAlign='start';
-
-    // ボール（待機）
-    const rBall=(window.innerWidth<820)?8:9;
-    if(!playing){
-      const y0=dims.GROUND_Y-sH;
-      ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y0,rBall,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#94a3b8'; ctx.stroke();
+    function arrow(x1,y1,x2,y2,c){
+      ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      const a=Math.atan2(y2-y1,x2-x1),h=8;
+      ctx.beginPath(); ctx.moveTo(x2,y2);
+      ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+      ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+      ctx.closePath(); ctx.fill();
+    }
+    function doubleArrowVertical(x,yTop,yBot,color){
+      ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
+      const h=8;
+      // 上矢
+      ctx.beginPath(); ctx.moveTo(x,yTop);
+      ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx.closePath(); ctx.fill();
+      // 下矢
+      ctx.beginPath(); ctx.moveTo(x,yBot);
+      ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx.closePath(); ctx.fill();
     }
 
-    // 残像
-    if(apexMarkerY!=null){
-      ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
-    }
+    function drawFixed(mt,maxV,xCMArrow){
+      const BR=brand();
+      const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
+      const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
 
-    // 黒字/赤字（固定費 vs 限界利益）— 黒字時は矢印も黒
-    if(revealedByPlay){
-      const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
-      const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
-      const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
-      const p=mt.cm-mt.fixed;
-      const danger=(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-      const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155'); // 黒字=黒／赤字=赤／±0=グレー
-      doubleArrowVertical(xNearBall, yTop, yBot, arrowColor);
-      const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
-      const labelColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
-      ctx.save(); ctx.fillStyle=labelColor; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
-      const wlbl=ctx.measureText(txt).width;
-      ctx.fillText(txt, Math.min(dims.W-6-wlbl,xNearBall+10), (yTop+yBot)/2);
-      ctx.restore();
-    }
-  }
-
-  function renderMetrics(mt){
-    $('mSales').textContent=jpy(mt.sales);
-    $('mCMR').textContent=mt.cmrPct.toFixed(1)+'%';
-    $('mCM').textContent=jpy(mt.cm);
-    $('mBEP').textContent=isFinite(mt.bep)?jpy(mt.bep):'—';
-    $('mProfit').textContent=jpy(mt.profit);
-    $('warnCMR0').style.display=(mt.cmr<=0)?'block':'none';
-  }
-  function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
-
-  function applyOrderChallenge(){
-    $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
-    $('guideCMR').textContent='② 限界利益率は何％ですか？';
-    $('guideSales').textContent='③ 上記を元に、必要売上高を考えてみましょう';
-    controls.insertBefore(challengeBox, controls.firstChild);
-    controls.append(guideFixed); guideFixed.style.display='block'; controls.append(paramFixed);
-    controls.append(guideCMR);   guideCMR.style.display='block';   controls.append(paramCMR);
-    controls.append(guideSales); guideSales.style.display='block'; controls.append(paramSales);
-    controls.append(checkRow);   checkRow.style.display='flex';
-    controls.append(checkResult);
-    metrics.style.display='none';
-    mBEPcard.classList.remove('accent');
-  }
-  function applyOrderNormal(){
-    guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
-    controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
-    controls.append(checkRow); checkRow.style.display='none';
-    controls.append(checkResult); checkResult.style.display='none';
-    metrics.style.display='grid';
-    showTargetLine=false; targetLineValue=null; showMOSBand=false;
-    mBEPcard.classList.remove('accent');
-  }
-
-  function doCheckAnswer(){
-    const mt=calc();
-    const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
-    const diffRaw = mt.sales - target;
-    const diffAbs = Math.abs(diffRaw);
-    const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
-
-    let msg='差はありません', cls='';
-    if(diffRaw < 0){ msg = 'あと ' + jpy(diffAbs) + ' 不足しています'; cls='diff-uline-red'; }
-    else if(diffRaw > 0){ msg = 'あと ' + jpy(diffAbs) + ' 余裕があります'; cls='diff-uline-blue'; }
-
-    pendingVals = {
-      targetText: isFinite(target)? jpy(target) : '—',
-      targetNum:  isFinite(target)? target : NaN,
-      msg, cls,
-      statusText: isFinite(pct)? ('誤差 '+pct.toFixed(1)+'%') : '誤差 —'
-    };
-    pendingCheck=true;
-    if(!playing) playOnce();
-  }
-
-  function resetAll(){
-    revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
-    pendingCheck=false; pendingVals=null; checkResult.style.display='none';
-    showTargetLine=false; targetLineValue=null; showMOSBand=false;
-    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
-    I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
-    metrics.style.display = toggle.checked ? 'none' : 'grid';
-    mBEPcard.classList.remove('accent');
-    redrawOnly();
-  }
-
-  function playOnce(){
-    if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
-    const mt=calc();
-    const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
-    const sH=sy(mt.sales,maxV), tH=sy(mt.cm,maxV);
-    const r=(window.innerWidth<820)?8:9;
-    let y=dims.GROUND_Y - sH, vy=0, g=.6, prevVy=0, bounced=false, ground=dims.GROUND_Y - r; apexMarkerY=null;
-    const ball=()=>{ ctx.beginPath(); ctx.fillStyle:'#475569'; ctx.arc(dims.W/2,y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle:'#94a3b8'; ctx.stroke(); };
-
-    function frame(){
-      prevVy=vy; vy+=g; y+=vy;
-      if(y>=ground && !bounced){
-        y=ground; const apex=dims.GROUND_Y - tH - r; const rise=y - apex;
-        vy = -Math.sqrt(Math.max(0,2*g*rise)); bounced=true;
-      }else if(bounced){
-        if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
-        if(vy>0 && y>=ground){
-          revealedByPlay=true; redrawOnly(); ball();
-          const p=calc().profit;
-          if(p>0){ resultEl.classList.remove('ng'); resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`; }
-          else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
-          else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
-
-          if(pendingCheck && pendingVals){
-            targetShown.textContent = pendingVals.targetText;
-            diffMsgEl.innerHTML     = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
-            statusEl.textContent    = pendingVals.statusText;
-            checkResult.style.display='block';
-            metrics.style.display='grid';
-            showTargetLine = isFinite(pendingVals.targetNum);
-            targetLineValue = pendingVals.targetNum;
-            showMOSBand = showTargetLine;
-            mBEPcard.classList.add('accent');
-            pendingCheck=false; pendingVals=null;
-            redrawOnly();
-          }
-          playing=false; return;
-        }
+      if(IS_IOS_MOBILE){
+        const startX = 0;
+        const width  = (barR - startX);
+        ctx.fillStyle='rgba(87,136,153,0.22)';
+        ctx.fillRect(startX, y, width, hgt);
+        ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,dims.MARGIN-2), y-8);
+      }else{
+        const L = barL+40;
+        const Rlimit = xCMArrow? (xCMArrow-30) : (barR-40);
+        const R = Math.max(L+24, Math.min(barR-40, Rlimit));
+        const W = R-L;
+        ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(L,y,W,hgt);
+        ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(L,y,W,hgt);
+        ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,L), y-8);
       }
-      redrawOnly(); ball(); requestAnimationFrame(frame);
     }
-    requestAnimationFrame(frame);
-  }
 
-  function clearCheckVisuals(){
-    checkResult.style.display='none'; metrics.style.display = toggle.checked ? 'none' : 'grid';
-    showTargetLine=false; targetLineValue=null; showMOSBand=false;
-    pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
-  }
-  function linkCurrency(t, r, hardMax=null){
-    const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
-      if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
-      r.value=String(v); if(toggle.checked){ clearCheckVisuals(); }
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
-    };
-    const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
-      if(toggle.checked){ clearCheckVisuals(); }
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
-    };
-    t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
-    r.addEventListener('input',toN); r.addEventListener('change',toN);
-  }
-  function linkNumber(n,r){
-    const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
-      if(toggle.checked){ clearCheckVisuals(); }
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
-    const toN=()=>{ n.value=r.value;
-      if(toggle.checked){ clearCheckVisuals(); }
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
-    n.addEventListener('input',toR); n.addEventListener('change',toR);
-    r.addEventListener('input',toN); r.addEventListener('change',toN);
-  }
+    function draw(mt){
+      const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed, isFinite(targetLineValue)?targetLineValue:0)*1.15;
+      const hide=toggle.checked && !revealedByPlay;
 
-  linkCurrency(I.sales,I.salesRange,5000000);
-  linkNumber(I.cmr,I.cmrRange);
-  linkCurrency(I.fixed,I.fixedRange,2000000);
+      ctx.clearRect(0,0,dims.W,dims.H);
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,dims.W,dims.H);
+      ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
 
-  $('challengeToggle').addEventListener('change', ()=>{
-    if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
-    revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
-    clearCheckVisuals();
-    redrawOnly();
+      // 地面
+      ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
+
+      // 目盛り（薄色の左軸ラベル）
+      ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.fillStyle=AXIS_TICK_COLOR;
+      for(let i=0;i<=5;i++){
+        const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
+        ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
+        ctx.fillText(jpy(val), 6, y-2);
+      }
+      ctx.setLineDash([]);
+
+      const xSalesArrow=dims.W-dims.MARGIN-18;
+      const xCMArrow=xSalesArrow-28;
+
+      // 固定費帯／矩形
+      drawFixed(mt,maxV,xCMArrow);
+
+      // 必要売上高ライン（答え合わせ後のみ）＋ 売上↔必要売上の差矢印
+      if(showTargetLine && isFinite(targetLineValue)){
+        const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
+        ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
+        ctx.beginPath(); ctx.moveTo(dims.MARGIN,yT); ctx.lineTo(dims.W-dims.MARGIN-2,yT); ctx.stroke(); ctx.restore();
+        ctx.fillStyle=BLUE;
+        ctx.fillText('必要売上高（損益分岐点売上高）: '+jpy(targetLineValue), Math.max(6,dims.MARGIN-2), yT-6);
+
+        const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
+        const yTop=Math.min(sY,yT), yBot=Math.max(sY,yT);
+        const diffS = mt.sales - targetLineValue;
+        const xLeft = Math.max(dims.MARGIN+18, 22);
+        const danger = (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+        const colorArrow = diffS>=0 ? '#000' : danger;       // 余裕=黒 / 不足=赤
+        doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
+        const labelColor = diffS>=0 ? '#000' : colorArrow;   // ラベル色も同様
+        ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+        const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
+        ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
+        ctx.restore();
+      }
+
+      // 売上（横点線＋右寄せラベル＋下向き矢印）
+      const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
+      ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
+      ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
+      const tSales='売上高: '+(hide?'???':jpy(mt.sales)); const ySales=sY-6;
+      if(hide){ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, xCMArrow-6, ySales); ctx.restore(); }
+      else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
+      arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
+
+      // 限界利益
+      const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
+      if(!hide){
+        ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=BLUE;
+        ctx.beginPath(); ctx.moveTo(dims.MARGIN,bY); ctx.lineTo(xCMArrow-2,bY); ctx.stroke(); ctx.restore();
+        ctx.fillStyle=BLUE;
+        const tCM='限界利益: '+jpy(b); const w=ctx.measureText(tCM).width;
+        const xText=Math.min(dims.W-dims.MARGIN-w, xCMArrow+8);
+        ctx.fillText(tCM, xText, bY-6);
+        arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, brand());
+      }else{
+        ctx.save(); ctx.fillStyle=BLUE; ctx.textAlign='right';
+        ctx.fillText('限界利益: ???', xCMArrow-6, ySales+16);
+        ctx.restore();
+      }
+
+      // 安全余裕帯
+      if(showMOSBand && showTargetLine && isFinite(targetLineValue)){
+        const yS = sY;
+        const yB = dims.GROUND_Y - sy(targetLineValue, maxV);
+        const yTop=Math.min(yS,yB), yBot=Math.max(yS,yB);
+        const positive = (mt.sales - targetLineValue) >= 0;
+        ctx.fillStyle = positive ? 'rgba(16,123,91,0.12)' : 'rgba(185,28,28,0.12)';
+        ctx.fillRect(dims.MARGIN, yTop, (dims.W - dims.MARGIN*2), yBot - yTop);
+      }
+
+      // 下部中央：限界利益率
+      const xMid=(xSalesArrow+xCMArrow)/2;
+      ctx.fillStyle='#334155'; ctx.textAlign='center';
+      ctx.fillText('限界利益率 '+mt.cmrPct.toFixed(1)+'%', xMid, dims.H-10);
+      ctx.textAlign='start';
+
+      // ボール（待機）
+      const rBall=(window.innerWidth<820)?8:9;
+      if(!playing){
+        const y0=dims.GROUND_Y-sH;
+        ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y0,rBall,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='#94a3b8'; ctx.stroke();
+      }
+
+      // 残像
+      if(apexMarkerY!=null){
+        ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
+      }
+
+      // 黒字/赤字（固定費 vs 限界利益）
+      if(revealedByPlay){
+        const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
+        const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
+        const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
+        const p=mt.cm-mt.fixed;
+        const danger=(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
+        const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155'); // 黒字=黒／赤字=赤／±0=グレー
+        doubleArrowVertical(xNearBall, yTop, yBot, arrowColor);
+        const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
+        const labelColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
+        ctx.save(); ctx.fillStyle=labelColor; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif'; ctx.textBaseline='middle';
+        const wlbl=ctx.measureText(txt).width;
+        ctx.fillText(txt, Math.min(dims.W-6-wlbl,xNearBall+10), (yTop+yBot)/2);
+        ctx.restore();
+      }
+    }
+
+    function renderMetrics(mt){
+      $('mSales').textContent=jpy(mt.sales);
+      $('mCMR').textContent=mt.cmrPct.toFixed(1)+'%';
+      $('mCM').textContent=jpy(mt.cm);
+      $('mBEP').textContent=isFinite(mt.bep)?jpy(mt.bep):'—';
+      $('mProfit').textContent=jpy(mt.profit);
+      const warn=$('warnCMR0');
+      if(warn) warn.style.display=(mt.cmr<=0)?'block':'none';
+    }
+    function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
+
+    function applyOrderChallenge(){
+      $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
+      $('guideCMR').textContent='② 限界利益率は何％ですか？';
+      $('guideSales').textContent='③ 上記を元に、必要売上高を考えてみましょう';
+      controls.insertBefore(challengeBox, controls.firstChild);
+      controls.append(guideFixed); guideFixed.style.display='block'; controls.append(paramFixed);
+      controls.append(guideCMR);   guideCMR.style.display='block';   controls.append(paramCMR);
+      controls.append(guideSales); guideSales.style.display='block'; controls.append(paramSales);
+      controls.append(checkRow);   checkRow.style.display='flex';
+      controls.append(checkResult);
+      metrics.style.display='none';
+      mBEPcard.classList.remove('accent');
+    }
+    function applyOrderNormal(){
+      guideFixed.style.display='none'; guideCMR.style.display='none'; guideSales.style.display='none';
+      controls.append(paramSales); controls.append(paramCMR); controls.append(paramFixed); controls.append(challengeBox);
+      controls.append(checkRow); checkRow.style.display='none';
+      controls.append(checkResult); checkResult.style.display='none';
+      metrics.style.display='grid';
+      showTargetLine=false; targetLineValue=null; showMOSBand=false;
+      mBEPcard.classList.remove('accent');
+    }
+
+    function doCheckAnswer(){
+      const mt=calc();
+      const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
+      const diffRaw = mt.sales - target;
+      const diffAbs = Math.abs(diffRaw);
+      const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
+
+      let msg='差はありません', cls='';
+      if(diffRaw < 0){ msg = 'あと ' + jpy(diffAbs) + ' 不足しています'; cls='diff-uline-red'; }
+      else if(diffRaw > 0){ msg = 'あと ' + jpy(diffAbs) + ' 余裕があります'; cls='diff-uline-blue'; }
+
+      pendingVals = {
+        targetText: isFinite(target)? jpy(target) : '—',
+        targetNum:  isFinite(target)? target : NaN,
+        msg, cls,
+        statusText: isFinite(pct)? ('誤差 '+pct.toFixed(1)+'%') : '誤差 —'
+      };
+      pendingCheck=true;
+      if(!playing) playOnce();
+    }
+
+    function resetAll(){
+      revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
+      pendingCheck=false; pendingVals=null; checkResult.style.display='none';
+      showTargetLine=false; targetLineValue=null; showMOSBand=false;
+      I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
+      I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
+      metrics.style.display = toggle.checked ? 'none' : 'grid';
+      mBEPcard.classList.remove('accent');
+      redrawOnly();
+    }
+
+    function playOnce(){
+      if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
+      const mt=calc();
+      const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed)*1.15;
+      const sH=sy(mt.sales,maxV), tH=sy(mt.cm,maxV);
+      const r=(window.innerWidth<820)?8:9;
+      let y=dims.GROUND_Y - sH, vy=0, g=.6, prevVy=0, bounced=false, ground=dims.GROUND_Y - r; apexMarkerY=null;
+      const ball=()=>{ ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke(); };
+
+      function frame(){
+        prevVy=vy; vy+=g; y+=vy;
+        if(y>=ground && !bounced){
+          y=ground; const apex=dims.GROUND_Y - tH - r; const rise=y - apex;
+          vy = -Math.sqrt(Math.max(0,2*g*rise)); bounced=true;
+        }else if(bounced){
+          if(prevVy<0 && vy>=0 && apexMarkerY==null){ apexMarkerY=y; }
+          if(vy>0 && y>=ground){
+            revealedByPlay=true; redrawOnly(); ball();
+            const p=calc().profit;
+            if(p>0){ resultEl.classList.remove('ng'); resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`; }
+            else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
+            else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
+
+            if(pendingCheck && pendingVals){
+              targetShown.textContent = pendingVals.targetText;
+              diffMsgEl.innerHTML     = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
+              statusEl.textContent    = pendingVals.statusText;
+              checkResult.style.display='block';
+              metrics.style.display='grid';
+              showTargetLine = isFinite(pendingVals.targetNum);
+              targetLineValue = pendingVals.targetNum;
+              showMOSBand = showTargetLine;
+              mBEPcard.classList.add('accent');
+              pendingCheck=false; pendingVals=null;
+              redrawOnly();
+            }
+            playing=false; return;
+          }
+        }
+        redrawOnly(); ball(); requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function clearCheckVisuals(){
+      checkResult.style.display='none'; metrics.style.display = toggle.checked ? 'none' : 'grid';
+      showTargetLine=false; targetLineValue=null; showMOSBand=false;
+      pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
+    }
+    function linkCurrency(t, r, hardMax=null){
+      const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
+        if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
+        r.value=String(v); if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
+      };
+      const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
+      };
+      t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
+      r.addEventListener('input',toN); r.addEventListener('change',toN);
+    }
+    function linkNumber(n,r){
+      const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+      const toN=()=>{ n.value=r.value;
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+      n.addEventListener('input',toR); n.addEventListener('change',toR);
+      r.addEventListener('input',toN); r.addEventListener('change',toN);
+    }
+
+    linkCurrency(I.sales,I.salesRange,5000000);
+    linkNumber(I.cmr,I.cmrRange);
+    linkCurrency(I.fixed,I.fixedRange,2000000);
+
+    toggle.addEventListener('change', ()=>{
+      if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
+      clearCheckVisuals();
+      redrawOnly();
+    });
+
+    $('play').addEventListener('click', ()=>playOnce());
+    $('reset').addEventListener('click', resetAll);
+    $('reset2').addEventListener('click', resetAll);
+    $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
+
+    function computeDims(){
+      const parent = cv.parentElement;
+      const parentW = (parent && parent.clientWidth) ? parent.clientWidth : window.innerWidth;
+      const vpW = window.innerWidth;
+      const isMobile = vpW < 820;
+      const isLandscape = vpW > window.innerHeight;
+      const avail = Math.min(parentW, vpW - 32);
+      const extraInset = isMobile ? 12 : 10;
+      const w = Math.max(280, avail - extraInset*2);
+      const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
+      const h = Math.max(220, Math.round(w*ratio));
+      dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
+    }
+    function setupCanvas(){
+      dpr=Math.max(1,window.devicePixelRatio||1);
+      cv.width=Math.round(dims.W*dpr); cv.height=Math.round(dims.H*dpr);
+      cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px';
+      ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+    }
+    function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
+
+    if('ResizeObserver' in window){
+      try{
+        const ro = new ResizeObserver(()=>layout());
+        if(cv.parentElement) ro.observe(cv.parentElement);
+      }catch(e){ console.warn('[r63c] ResizeObserver が初期化できませんでした:', e); }
+    }
+    ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
+
+    // 初期化
+    (function init(){
+      I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
+      I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
+      I.cmr.value=String(DEFAULTS.cmr);
+      applyOrderNormal();
+      layout();
+    })();
   });
-
-  $('play').addEventListener('click', ()=>playOnce());
-  $('reset').addEventListener('click', resetAll);
-  $('reset2').addEventListener('click', resetAll);
-  $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
-
-  function computeDims(){
-    const parentW = cv.parentElement.clientWidth || window.innerWidth;
-    const vpW = window.innerWidth;
-    const isMobile = vpW < 820;
-    const isLandscape = vpW > window.innerHeight;
-    const avail = Math.min(parentW, vpW - 32);
-    const extraInset = isMobile ? 12 : 10;
-    const w = Math.max(280, avail - extraInset*2);
-    const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
-    const h = Math.max(220, Math.round(w*ratio));
-    dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
-  }
-  function setupCanvas(){
-    dpr=Math.max(1,window.devicePixelRatio||1);
-    cv.width=Math.round(dims.W*dpr); cv.height=Math.round(dims.H*dpr);
-    cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px';
-    ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
-  }
-  function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
-  if('ResizeObserver' in window){ new ResizeObserver(layout).observe(cv.parentElement); }
-  ['load','pageshow','orientationchange','resize'].forEach(ev=>addEventListener(ev,()=>requestAnimationFrame(layout)));
-
-  (function init(){
-    I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
-    I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
-    I.cmr.value=String(DEFAULTS.cmr);
-    applyOrderNormal();
-    layout();
-  })();
 })();
 </script>
 </body>
