@@ -1,16 +1,27 @@
 <!DOCTYPE html>
-<!-- internal version: r64 (金額入力をリアルタイムでカンマ整形) -->
+<!-- internal version: r63a (ロゴ/ファビコン追加・フッターリンク化) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>ボールで学ぶ変動損益計算書</title>
+
+<!-- ▼ ファビコン -->
+<link rel="icon" type="image/png" sizes="192x192" href="favicon192192.png" />
+
 <style>
 :root{--brand:#578899;--brand-600:#4b7481;--ink:#0f172a;--line:#e5e7eb;--line-dark:#cbd5e1;--danger:#b91c1c}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;color:var(--ink);background:#fff}
 .page{min-height:100%;padding:16px}
 .stack{max-width:1120px;width:100%;margin:0 auto}
+
+/* ▼ ヘッダー（ロゴ表示） */
+.site-header{display:flex;align-items:center;gap:12px;padding:8px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.site-logo{height:48px;width:auto;display:block}
+.site-title{font-size:18px;font-weight:700;color:#222}
+@media (max-width:420px){.site-title{font-size:16px}}
+
 .grid-main{display:grid;gap:16px;grid-template-columns:1fr}
 @media (min-width:960px){.grid-main{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}}
 @media (max-width:959.9px) and (orientation:landscape){.grid-main{grid-template-columns:1fr 1fr}}
@@ -42,6 +53,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:var(--brand);background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
+.footer a{color:inherit;text-decoration:underline;text-underline-offset:2px} /* 文字色そのまま＋下線 */
 .diff-uline-blue{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#0ea5e9;text-underline-offset:2px}
 .diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
 @media (max-width:480px){h1{font-size:17px}.card{padding:10px}.note-top{font-size:12px}input[type="text"],input[type="number"]{width:86px;padding:7px}}
@@ -49,6 +61,12 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 </head>
 <body>
 <div class="page">
+  <!-- ▼ ロゴ付きヘッダー -->
+  <header class="site-header" role="banner" aria-label="サイトヘッダー">
+    <img src="ロゴ.jpg" alt="松本会計ロゴ" class="site-logo">
+    <div class="site-title">オリジナルツール</div>
+  </header>
+
   <div class="stack">
     <div class="grid-main">
       <div class="card" id="cardGraph">
@@ -114,15 +132,21 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         </div>
       </div>
     </div>
+
+    <!-- ▼ フッター（リンクは下線のみ・色継承） -->
     <div class="footer">
-      <small>Copyright (c) 2025 税理士法人松本会計事務所 All Rights Reserved. / r64</small>
+      <small>
+        Copyright (c) 2025
+        <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
+        All Rights Reserved. / r63a
+      </small>
     </div>
   </div>
 </div>
 
 <script>
 (function(){
-  const VERSION='r64';
+  const VERSION='r63a';
   const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
   const BLUE='#0ea5e9';
   const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -134,7 +158,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   const cv=$('cv'), ctx=cv.getContext('2d');
   let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
-  // チャレンジ同期
   let pendingCheck=false, pendingVals=null;
   let showTargetLine=false, targetLineValue=null;
   let showMOSBand=false;
@@ -166,22 +189,25 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   }
 
   function arrow(x1,y1,x2,y2,c){
-    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    const ctxL=ctx;
+    ctxL.strokeStyle=c; ctxL.fillStyle=c; ctxL.lineWidth=2;
+    ctxL.beginPath(); ctxL.moveTo(x1,y1); ctxL.lineTo(x2,y2); ctxL.stroke();
     const a=Math.atan2(y2-y1,x2-x1),h=8;
-    ctx.beginPath(); ctx.moveTo(x2,y2);
-    ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
-    ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
-    ctx.closePath(); ctx.fill();
+    ctxL.beginPath(); ctxL.moveTo(x2,y2);
+    ctxL.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+    ctxL.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+    ctxL.closePath(); ctxL.fill();
   }
   function doubleArrowVertical(x,yTop,yBot,color){
     ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
     const h=8;
+    // 上矢
     ctx.beginPath(); ctx.moveTo(x,yTop);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
     ctx.closePath(); ctx.fill();
+    // 下矢
     ctx.beginPath(); ctx.moveTo(x,yBot);
     ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
     ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
@@ -221,7 +247,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 地面
     ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,dims.GROUND_Y,dims.W,3);
 
-    // 目盛り
+    // 目盛り（薄色の左軸ラベル）
     ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
     ctx.fillStyle=AXIS_TICK_COLOR;
     for(let i=0;i<=5;i++){
@@ -237,7 +263,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     // 固定費帯／矩形
     drawFixed(mt,maxV,xCMArrow);
 
-    // 必要売上高ライン＋差矢印（チャレンジ結果表示時）
+    // 必要売上高ライン（答え合わせ後のみ）＋ 売上↔必要売上の差矢印
     if(showTargetLine && isFinite(targetLineValue)){
       const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
       ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
@@ -250,9 +276,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const diffS = mt.sales - targetLineValue;
       const xLeft = Math.max(dims.MARGIN+18, 22);
       const danger = (getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-      const colorArrow = diffS>=0 ? '#000' : danger; // 余裕のとき矢印も黒
+      const colorArrow = diffS>=0 ? '#000' : danger;       // 余裕=黒 / 不足=赤
       doubleArrowVertical(xLeft, yTop, yBot, colorArrow);
-      const labelColor = diffS>=0 ? '#000' : colorArrow;
+      const labelColor = diffS>=0 ? '#000' : colorArrow;   // ラベル色も同様
       ctx.save(); ctx.fillStyle=labelColor; ctx.textBaseline='middle'; ctx.font='bold 12px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
       const lbl = (diffS>=0? '余裕 ' : '不足 ') + jpy(Math.abs(diffS));
       ctx.fillText(lbl, xLeft+8, (yTop+yBot)/2);
@@ -268,7 +294,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
     arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-    // 限界利益（横点線＋左寄せラベル＋上向き矢印）
+    // 限界利益
     const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
     if(!hide){
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=BLUE;
@@ -284,7 +310,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.restore();
     }
 
-    // 安全余裕帯（視覚補助）
+    // 安全余裕帯
     if(showMOSBand && showTargetLine && isFinite(targetLineValue)){
       const yS = sY;
       const yB = dims.GROUND_Y - sy(targetLineValue, maxV);
@@ -314,14 +340,14 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.beginPath(); ctx.arc(dims.W/2,apexMarkerY,10,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
-    // 黒字/赤字（固定費 vs 限界利益）— 黒字のとき矢印も黒
+    // 黒字/赤字（固定費 vs 限界利益）— 黒字時は矢印も黒
     if(revealedByPlay){
       const bY2=bY, hY2=dims.GROUND_Y - sy(mt.fixed,maxV);
       const yTop=Math.min(bY2,hY2), yBot=Math.max(bY2,hY2);
       const xNearBall=Math.min(dims.W-dims.MARGIN-24,(dims.W/2)+((window.innerWidth<820)?8:9)+10);
       const p=mt.cm-mt.fixed;
       const danger=(getComputedStyle(document.documentElement).getPropertyValue('--danger').trim()||'#b91c1c');
-      const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
+      const arrowColor = p>0 ? '#000' : (p<0 ? danger : '#334155'); // 黒字=黒／赤字=赤／±0=グレー
       doubleArrowVertical(xNearBall, yTop, yBot, arrowColor);
       const txt=p>0?('黒字 '+jpy(p)):p<0?('赤字 '+jpy(-p)):'±0';
       const labelColor = p>0 ? '#000' : (p<0 ? danger : '#334155');
@@ -341,41 +367,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     $('warnCMR0').style.display=(mt.cmr<=0)?'block':'none';
   }
   function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
-
-  // ▼▼ ここから：リアルタイム・カンマ整形（キャレット維持） ▼▼
-  function formatCurrencyInputKeepCaret(input){
-    const raw=input.value;
-    const sel=input.selectionStart ?? raw.length;
-    // カーソル左側にある「数字」の個数を数える
-    let digitsLeft=0;
-    for(let i=0;i<Math.min(sel,raw.length);i++){
-      if(/\d/.test(raw[i])) digitsLeft++;
-    }
-    // 非数字除去
-    const digits=raw.replace(/[^\d]/g,'');
-    // 空なら空のまま
-    if(digits===''){
-      input.value='';
-      input.setSelectionRange(0,0);
-      return 0;
-    }
-    // 数値にして整形
-    const n=Number(digits);
-    const formatted=n.toLocaleString('ja-JP');
-    input.value=formatted;
-    // 同じだけの「数字」が左側に来る位置へキャレットを戻す
-    let count=0, pos=formatted.length;
-    if(digitsLeft===0){ pos=0; }
-    else{
-      for(let i=0;i<formatted.length;i++){
-        if(/\d/.test(formatted[i])){ count++; }
-        if(count===digitsLeft){ pos=i+1; break; } // その数字の直後
-      }
-    }
-    input.setSelectionRange(pos,pos);
-    return n;
-  }
-  // ▲▲ ここまで ▲▲
 
   function applyOrderChallenge(){
     $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
@@ -439,7 +430,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const sH=sy(mt.sales,maxV), tH=sy(mt.cm,maxV);
     const r=(window.innerWidth<820)?8:9;
     let y=dims.GROUND_Y - sH, vy=0, g=.6, prevVy=0, bounced=false, ground=dims.GROUND_Y - r; apexMarkerY=null;
-    const ball=()=>{ ctx.beginPath(); ctx.fillStyle='#475569'; ctx.arc(dims.W/2,y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#94a3b8'; ctx.stroke(); };
+    const ball=()=>{ ctx.beginPath(); ctx.fillStyle:'#475569'; ctx.arc(dims.W/2,y,r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle:'#94a3b8'; ctx.stroke(); };
 
     function frame(){
       prevVy=vy; vy+=g; y+=vy;
@@ -481,29 +472,19 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     showTargetLine=false; targetLineValue=null; showMOSBand=false;
     pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
   }
-
-  // 双方向リンク：金額（テキスト⇄レンジ）
   function linkCurrency(t, r, hardMax=null){
-    const toR=()=>{ 
-      // リアルタイムでカンマ整形しつつ数値を取得
-      const n = formatCurrencyInputKeepCaret(t);
-      const v = Math.max(0, n|0);
+    const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
       if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
-      r.value=String(v);
-      if(toggle.checked){ clearCheckVisuals(); }
+      r.value=String(v); if(toggle.checked){ clearCheckVisuals(); }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
     };
-    const toN=()=>{ 
-      const v=Number(r.value||0); 
-      t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
+    const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
       if(toggle.checked){ clearCheckVisuals(); }
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
     };
     t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
-    r.addEventListener('input',toN);  r.addEventListener('change',toN);
+    r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
-
-  // 双方向リンク：割合（数値⇄レンジ）
   function linkNumber(n,r){
     const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
       if(toggle.checked){ clearCheckVisuals(); }
@@ -515,12 +496,10 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     r.addEventListener('input',toN); r.addEventListener('change',toN);
   }
 
-  // 初期リンク設定
   linkCurrency(I.sales,I.salesRange,5000000);
   linkNumber(I.cmr,I.cmrRange);
   linkCurrency(I.fixed,I.fixedRange,2000000);
 
-  // チャレンジ切替
   $('challengeToggle').addEventListener('change', ()=>{
     if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
     revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
@@ -528,13 +507,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     redrawOnly();
   });
 
-  // ボタン
   $('play').addEventListener('click', ()=>playOnce());
   $('reset').addEventListener('click', resetAll);
   $('reset2').addEventListener('click', resetAll);
   $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
 
-  // レイアウト
   function computeDims(){
     const parentW = cv.parentElement.clientWidth || window.innerWidth;
     const vpW = window.innerWidth;
