@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- internal version: r63d (ヘッダー削除＋タイトル横にロゴ配置／favicon／フッターリンク) -->
+<!-- internal version: r63e (タイトル横ロゴに公式サイトリンク) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -21,9 +21,11 @@ html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;o
 @media (max-width:959.9px) and (orientation:landscape){.grid-main{grid-template-columns:1fr 1fr}}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
 
-/* ▼ タイトル行（赤枠位置）にロゴを配置 */
+/* ▼ タイトル行（赤枠位置） */
 .title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px}
-.title-logo{height:42px;width:auto;display:block}     /* 必要なら 24〜36px に調整可 */
+.title-logo{height:28px;width:auto;display:block}
+/* ロゴリンクは下線なし・インラインフレックスで揃える */
+.logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
 h1{font-size:18px;margin:0}
 
 /* 既存スタイル */
@@ -75,10 +77,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   <div class="stack">
     <div class="grid-main">
       <div class="card" id="cardGraph">
-
-        <!-- ▼ 赤枠位置：タイトル行にロゴを配置（上部帯は削除済み） -->
+        <!-- ▼ タイトル行：ロゴをリンク化 -->
         <div class="title-row">
-          <img src="ロゴ.jpg" alt="松本会計ロゴ" class="title-logo" />
+          <a class="logo-link" href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">
+            <img src="ロゴ.jpg" alt="税理士法人松本会計事務所 ロゴ" class="title-logo" />
+          </a>
           <h1>ボールで学ぶ変動損益計算書</h1>
         </div>
 
@@ -149,7 +152,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63d
+        All Rights Reserved. / r63e
       </small>
     </div>
   </div>
@@ -167,7 +170,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r63d';
+    const VERSION='r63e';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -177,9 +180,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
     const cv=$('cv');
-    if(!cv){ console.error('[r63d] canvas#cv が見つかりません。'); return; }
+    if(!cv){ console.error('[r63e] canvas#cv が見つかりません。'); return; }
     const ctx=cv.getContext && cv.getContext('2d');
-    if(!ctx){ console.error('[r63d] 2Dコンテキストが取得できません。'); return; }
+    if(!ctx){ console.error('[r63e] 2Dコンテキストが取得できません。'); return; }
 
     let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
@@ -558,7 +561,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r63d] ResizeObserver 初期化失敗:', e); }
+      }catch(e){ console.warn('[r63e] ResizeObserver 初期化失敗:', e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
