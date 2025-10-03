@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<!-- internal version: r63e (タイトル横ロゴに公式サイトリンク) -->
+<!-- internal version: r63f (リアルタイムカンマ & BEP整数演算修正 + ロゴリンク) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>ボールで学ぶ変動損益計算書</title>
 
-<!-- ▼ ファビコン -->
 <link rel="icon" type="image/png" sizes="192x192" href="favicon192192.png" />
 
 <style>
@@ -21,14 +20,12 @@ html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;o
 @media (max-width:959.9px) and (orientation:landscape){.grid-main{grid-template-columns:1fr 1fr}}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
 
-/* ▼ タイトル行（赤枠位置） */
+/* タイトル行にロゴ */
 .title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px}
-.title-logo{height:48px;width:auto;display:block}
-/* ロゴリンクは下線なし・インラインフレックスで揃える */
+.title-logo{height:28px;width:auto;display:block}
 .logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
 h1{font-size:18px;margin:0}
 
-/* 既存スタイル */
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
@@ -56,7 +53,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:#578899;background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 
-/* ▼ フッター（リンクは文字色そのまま＋下線） */
+/* フッター（リンクは色継承＋下線） */
 .footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
 .footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 
@@ -77,7 +74,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   <div class="stack">
     <div class="grid-main">
       <div class="card" id="cardGraph">
-        <!-- ▼ タイトル行：ロゴをリンク化 -->
         <div class="title-row">
           <a class="logo-link" href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">
             <img src="ロゴ.jpg" alt="税理士法人松本会計事務所 ロゴ" class="title-logo" />
@@ -147,12 +143,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
 
-    <!-- ▼ フッター（リンクは下線のみ・色継承） -->
     <div class="footer">
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63e
+        All Rights Reserved. / r63f
       </small>
     </div>
   </div>
@@ -170,7 +165,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r63e';
+    const VERSION='r63f';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -180,9 +175,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
     const cv=$('cv');
-    if(!cv){ console.error('[r63e] canvas#cv が見つかりません。'); return; }
+    if(!cv){ console.error('[r63f] canvas#cv が見つかりません。'); return; }
     const ctx=cv.getContext && cv.getContext('2d');
-    if(!ctx){ console.error('[r63e] 2Dコンテキストが取得できません。'); return; }
+    if(!ctx){ console.error('[r63f] 2Dコンテキストが取得できません。'); return; }
 
     let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
 
@@ -206,14 +201,48 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
     const mBEPcard=$('mBEPcard');
 
-    const parseComma=v=>Number(String(v??'').replace(/[^\d.-]/g,'')||0);
+    // 数字化（,など除去）
+    const parseComma=v=>Number(String(v??'').replace(/[^\d-]/g,'')||0);
+
+    // 入力リアルタイムで3桁区切りにする（キャレット維持）
+    function formatCurrencyInput(el){
+      const sel = el.selectionEnd ?? el.value.length;
+      const leftDigits = el.value.slice(0, sel).replace(/[^\d]/g,'').length;
+      const numStr = el.value.replace(/[^\d]/g,'');
+      const n = Number(numStr||0);
+      el.value = isFinite(n) ? n.toLocaleString('ja-JP') : '';
+      // キャレット再配置（左側の数字個数が同じ位置へ）
+      let pos=0, cnt=0; const v=el.value;
+      for(let i=0;i<v.length;i++){ if(/\d/.test(v[i])) cnt++; if(cnt>=leftDigits){ pos=i+1; break; } }
+      try{ el.setSelectionRange(pos,pos); }catch(_){}
+      return n;
+    }
 
     function calc(){
-      const sales=Math.max(0,parseComma(I.sales.value));
-      const cmrPct=Math.max(0,Math.min(100,Number(I.cmr.value||0)));
-      const fixed=Math.max(0,parseComma(I.fixed.value));
-      const cmr=cmrPct/100, cm=sales*cmr, profit=cm-fixed, bep=cmr>0?Math.ceil(fixed/cmr):Infinity;
-      return {sales,cmrPct,cmr,cm,profit,bep,fixed};
+      const salesRaw = parseComma(I.sales.value);
+      const fixedRaw = parseComma(I.fixed.value);
+
+      // CMRは1桁小数までを前提にパーミル整数へ（例: 70.0% -> 700‰）
+      const cmrPctInput = Number(I.cmr.value||0);
+      const cmrPctClamped = Math.min(100, Math.max(0, cmrPctInput));
+      const cmrPermille = Math.round(cmrPctClamped * 10); // 0..1000（‰）
+      const cmrPctRounded = cmrPermille / 10;             // 表示用：1桁小数
+
+      // 限界利益（整数演算→四捨五入）
+      const cm = Math.round(salesRaw * cmrPermille / 1000);
+
+      // 損益分岐点売上高（完全整数演算）
+      const bep = cmrPermille>0 ? Math.ceil(fixedRaw * 1000 / cmrPermille) : Infinity;
+
+      const profit = cm - fixedRaw;
+
+      return {
+        sales: salesRaw,
+        fixed: fixedRaw,
+        cmrPct: cmrPctRounded,     // 表示用%
+        cmrPermille,               // 1000分率（整数）
+        cm, profit, bep
+      };
     }
 
     function arrow(x1,y1,x2,y2,c){
@@ -345,7 +374,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         ctx.fillRect(dims.MARGIN, yTop, (dims.W - dims.MARGIN*2), yBot - yTop);
       }
 
-      // 下部中央：限界利益率
+      // 下部中央：限界利益率（表示は1桁小数）
       const xMid=(xSalesArrow+xCMArrow)/2;
       ctx.fillStyle='#334155'; ctx.textAlign='center';
       ctx.fillText('限界利益率 '+mt.cmrPct.toFixed(1)+'%', xMid, dims.H-10);
@@ -388,7 +417,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       $('mCM').textContent=jpy(mt.cm);
       $('mBEP').textContent=isFinite(mt.bep)?jpy(mt.bep):'—';
       $('mProfit').textContent=jpy(mt.profit);
-      const warn=$('warnCMR0'); if(warn) warn.style.display=(mt.cmr<=0)?'block':'none';
+      const warn=$('warnCMR0'); if(warn) warn.style.display=(mt.cmrPermille<=0)?'block':'none';
     }
     function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
@@ -417,7 +446,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
     function doCheckAnswer(){
       const mt=calc();
-      const target = mt.cmr>0 ? Math.ceil(mt.fixed/mt.cmr) : Infinity;
+      const target = mt.cmrPermille>0 ? Math.ceil(mt.fixed*1000/mt.cmrPermille) : Infinity;
       const diffRaw = mt.sales - target;
       const diffAbs = Math.abs(diffRaw);
       const pct = (isFinite(target)&&target>0) ? (diffAbs/target*100) : NaN;
@@ -440,7 +469,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       revealedByPlay=false; apexMarkerY=null; playing=false; resultEl.textContent=''; resultEl.classList.remove('ng');
       pendingCheck=false; pendingVals=null; checkResult.style.display='none';
       showTargetLine=false; targetLineValue=null; showMOSBand=false;
-      I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
+      I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
+      I.cmr.value=String(DEFAULTS.cmr);
+      I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
       I.salesRange.value=String(DEFAULTS.sales); I.cmrRange.value=String(DEFAULTS.cmr); I.fixedRange.value=String(DEFAULTS.fixed);
       metrics.style.display = toggle.checked ? 'none' : 'grid';
       mBEPcard.classList.remove('accent');
@@ -496,30 +527,47 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       showTargetLine=false; targetLineValue=null; showMOSBand=false;
       pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
     }
+
+    // テキスト入力とスライダーのリンク（リアルタイムカンマ対応）
     function linkCurrency(t, r, hardMax=null){
-      const toR=()=>{ const v=Number(String(t.value).replace(/[^\d.-]/g,'')||0);
+      const toR=()=>{
+        const n = formatCurrencyInput(t);     // ← 入力中でもコンマ整形
+        const v = Number(n);
         if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
-        r.value=String(v); if(toggle.checked){ clearCheckVisuals(); }
-        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
-      };
-      const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
+        r.value=String(v);
         if(toggle.checked){ clearCheckVisuals(); }
         revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
       };
-      t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
-      r.addEventListener('input',toN); r.addEventListener('change',toN);
+      const toN=()=>{
+        const v=Number(r.value||0);
+        t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):'';
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
+      };
+      // 入力中も反映
+      t.addEventListener('input',toR);
+      t.addEventListener('change',toR);
+      t.addEventListener('blur',toR);
+      r.addEventListener('input',toN);
+      r.addEventListener('change',toN);
     }
     function linkNumber(n,r){
-      const toR=()=>{ const v=Number(n.value||0); if(v>Number(r.max)) r.max=v; r.value=String(v);
+      const toR=()=>{ 
+        const v=Number(n.value||0);
+        if(v>Number(r.max)) r.max=v; 
+        r.value=String(v);
         if(toggle.checked){ clearCheckVisuals(); }
-        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); 
+      };
       const toN=()=>{ n.value=r.value;
         if(toggle.checked){ clearCheckVisuals(); }
-        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); 
+      };
       n.addEventListener('input',toR); n.addEventListener('change',toR);
       r.addEventListener('input',toN); r.addEventListener('change',toN);
     }
 
+    // リンク設定
     linkCurrency(I.sales,I.salesRange,5000000);
     linkNumber(I.cmr,I.cmrRange);
     linkCurrency(I.fixed,I.fixedRange,2000000);
@@ -561,7 +609,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r63e] ResizeObserver 初期化失敗:', e); }
+      }catch(e){ console.warn('[r63f] ResizeObserver 初期化失敗:', e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
