@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- internal version: r63j
-  - ロゴ高さ 48px
+<!-- internal version: r71
+  - 「解説」ボタンの文字色を #578899 に設定
   - 売上高/固定費：安定整形（IME合成中は整形しない、全角/丸数字→半角、キャレット維持）
   - 限界利益率：同様に安定整形（小数1桁まで、0〜100%に強制、全角→半角／句読点→.）
   - 計算の丸め統一：CM=floor, BEP=ceil
-  - タイトル横に「解説」ボタン追加（クリックで「変動PL.png」を新規タブで開く）
 -->
 <html lang="ja">
 <head>
@@ -35,6 +34,8 @@ h1{font-size:18px;margin:0}
 .btn{appearance:none;border:1px solid var(--line-dark);background:#fff;border-radius:12px;padding:6px 10px;font-weight:700;cursor:pointer}
 .btn:hover{border-color:#94a3b8}
 .btn:active{transform:translateY(1px)}
+/* 「解説」ボタンの文字色を #578899 に固定 */
+#openExplain{color:#578899}
 
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
@@ -164,7 +165,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63j
+        All Rights Reserved. / r71
       </small>
     </div>
   </div>
@@ -182,7 +183,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r63j';
+    const VERSION='r71';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -191,8 +192,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-    const cv=$('cv'); if(!cv){ console.error('[r63j] canvas#cv が見つかりません。'); return; }
-    const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error('[r63j] 2Dコンテキスト取得不可'); return; }
+    const cv=$('cv'); if(!cv){ console.error('[r71] canvas#cv が見つかりません。'); return; }
+    const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error('[r71] 2Dコンテキスト取得不可'); return; }
 
     // 「解説」ボタン：画像を別タブで開く（日本語ファイル名をエンコード）
     const explainBtn = $('openExplain');
@@ -701,7 +702,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r63j] ResizeObserver 初期化失敗:', e); }
+      }catch(e){ console.warn('[r71] ResizeObserver 初期化失敗:', e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
