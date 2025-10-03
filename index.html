@@ -1,12 +1,16 @@
 <!DOCTYPE html>
-<!-- internal version: r63g (ロゴリンク／favicon／フッター下線リンク／リアルタイム3桁区切り／整数演算＆丸め統一：CM=floor, BEP=ceil) -->
+<!-- internal version: r63h
+  - ロゴ高さ 48px
+  - 入力の安定化：IME合成中は整形しない／全角・丸数字→半角数字へ正規化／キャレット補正を堅牢化
+  - リアルタイム3桁区切り（安定版）
+  - 計算の丸め統一：CM=floor, BEP=ceil（右パネルと矛盾しない）
+-->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>ボールで学ぶ変動損益計算書</title>
 
-<!-- ▼ ファビコン -->
 <link rel="icon" type="image/png" sizes="192x192" href="favicon192192.png" />
 
 <style>
@@ -23,7 +27,7 @@ html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;o
 
 /* タイトル行（ロゴ＋見出し） */
 .title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px}
-.title-logo{height:48px;width:auto;display:block}
+.title-logo{height:48px;width:auto;display:block} /* ← 48px */
 .logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
 h1{font-size:18px;margin:0}
 
@@ -62,7 +66,9 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 .diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
 
 @media (max-width:480px){
-  .title-logo{height:24px}
+  /* モバイルでも 48px を維持（必要なら下を有効化して40に）
+  .title-logo{height:40px}
+  */
   h1{font-size:17px}
   .card{padding:10px}
   .note-top{font-size:12px}
@@ -100,17 +106,22 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <div class="card" id="cardCtrl">
         <div class="controls" id="controls">
           <label class="f" id="paramSales"><div class="row1"><span class="ttl">売上高（S）</span>
-            <input id="sales" type="text" inputmode="numeric" pattern="[0-9,]*" value="1,000,000"></div>
+            <input id="sales" type="text" inputmode="numeric" enterkeyhint="done"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              value="1,000,000"></div>
             <div class="row2"><input id="salesRange" type="range" min="0" max="5000000" step="1000" value="1000000"></div>
           </label>
 
           <label class="f" id="paramCMR"><div class="row1"><span class="ttl">限界利益率（CMR, %）</span>
-            <input id="cmr" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="60"></div>
+            <input id="cmr" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="60"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
             <div class="row2"><input id="cmrRange" type="range" min="0" max="100" step="0.1" value="60"></div>
           </label>
 
           <label class="f" id="paramFixed"><div class="row1"><span class="ttl">固定費（FC）</span>
-            <input id="fixed" type="text" inputmode="numeric" pattern="[0-9,]*" value="700,000"></div>
+            <input id="fixed" type="text" inputmode="numeric" enterkeyhint="done"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              value="700,000"></div>
             <div class="row2"><input id="fixedRange" type="range" min="0" max="2000000" step="1000" value="700000"></div>
           </label>
 
@@ -148,7 +159,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       <small>
         Copyright (c) 2025
         <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r63g
+        All Rights Reserved. / r63h
       </small>
     </div>
   </div>
@@ -166,7 +177,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r63g';
+    const VERSION='r63h';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -175,16 +186,11 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-    const cv=$('cv');
-    if(!cv){ console.error('[r63g] canvas#cv が見つかりません。'); return; }
-    const ctx=cv.getContext && cv.getContext('2d');
-    if(!ctx){ console.error('[r63g] 2Dコンテキストが取得できません。'); return; }
+    const cv=$('cv'); if(!cv){ console.error('[r63h] canvas#cv が見つかりません。'); return; }
+    const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error('[r63h] 2Dコンテキスト取得不可'); return; }
 
-    let dpr=1, revealedByPlay=false, playing=false, apexMarkerY=null;
-
-    let pendingCheck=false, pendingVals=null;
-    let showTargetLine=false, targetLineValue=null;
-    let showMOSBand=false;
+    let revealedByPlay=false, playing=false, apexMarkerY=null;
+    let pendingCheck=false, pendingVals=null, showTargetLine=false, targetLineValue=null, showMOSBand=false;
 
     const dims={W:360,H:240,MARGIN:36,GROUND_Y:204};
     const sy=(v,maxV)=>(dims.H - dims.MARGIN*2) * (v / maxV);
@@ -202,44 +208,60 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
     const mBEPcard=$('mBEPcard');
 
-    /* ---------------- 数値ユーティリティ ---------------- */
-    const parseComma=v=>Number(String(v??'').replace(/[^\d-]/g,'')||0);
+    /* ========== 入力の安定化ユーティリティ ========== */
+    const CIRCLED_MAP = Object.fromEntries([
+      ['①','1'],['②','2'],['③','3'],['④','4'],['⑤','5'],['⑥','6'],['⑦','7'],['⑧','8'],['⑨','9'],['⑩','10'],
+      ['⑪','11'],['⑫','12'],['⑬','13'],['⑭','14'],['⑮','15'],['⑯','16'],['⑰','17'],['⑱','18'],['⑲','19'],['⑳','20']
+    ]);
+    function normalizeDigits(str){
+      if(!str) return '';
+      str = str.replace(/[０-９]/g, s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0)); // 全角→半角
+      str = str.replace(/[①-⑳]/g, s=>CIRCLED_MAP[s]||'');                            // 丸数字→半角
+      return str;
+    }
+    function extractDigits(str){ return normalizeDigits(str).replace(/\D+/g,''); }
+    function parseComma(v){ const raw = extractDigits(String(v??'')); return Number(raw||0); }
 
-    // 入力中もリアルタイムで3桁区切り（キャレット維持）
+    const composing = new WeakMap(); // IME合成中フラグ
+
+    // 入力中もリアルタイム整形（合成中は未整形）。キャレットは「左の数字個数」で復元。
     function formatCurrencyInput(el){
-      const sel = el.selectionEnd ?? el.value.length;
-      const leftDigits = el.value.slice(0, sel).replace(/[^\d]/g,'').length;
-      const numStr = el.value.replace(/[^\d]/g,'');
-      const n = Number(numStr||0);
-      el.value = isFinite(n) ? n.toLocaleString('ja-JP') : '';
-      let pos=0, cnt=0, v=el.value;
-      for(let i=0;i<v.length;i++){ if(/\d/.test(v[i])) cnt++; if(cnt>=leftDigits){ pos=i+1; break; } }
+      if(composing.get(el)) return parseComma(el.value);
+      const valueBefore = el.value;
+      const sel = el.selectionEnd ?? valueBefore.length;
+      const digitsLeft = extractDigits(valueBefore.slice(0, sel)).length;
+      const raw = extractDigits(valueBefore);
+      const n = Number(raw||0);
+      const formatted = isFinite(n) ? n.toLocaleString('ja-JP') : '';
+      let pos=0, count=0;
+      for(let i=0;i<formatted.length;i++){
+        if(/\d/.test(formatted[i])) count++;
+        if(count>=digitsLeft){ pos=i+1; break; }
+      }
+      if(digitsLeft===extractDigits(valueBefore).length) pos=formatted.length;
+      el.value = formatted;
       try{ el.setSelectionRange(pos,pos); }catch(_){}
       return n;
     }
 
-    /* ---------------- 計算（丸め統一） ----------------
-       - CMRは‰(パーミル)整数に変換
-       - 限界利益 CM = floor(S × CMR‰ / 1000)
-       - BEP       = ceil (FC×1000 / CMR‰)
-       これで 1円差 の矛盾を解消
-    --------------------------------------------------- */
+    /* ================= 計算（丸め統一） ================= */
     function calc(){
       const salesRaw = parseComma(I.sales.value);
       const fixedRaw = parseComma(I.fixed.value);
 
       const cmrPctInput   = Number(I.cmr.value||0);
       const cmrPctClamped = Math.min(100, Math.max(0, cmrPctInput));
-      const cmrPermille   = Math.round(cmrPctClamped * 10); // 0..1000
+      const cmrPermille   = Math.round(cmrPctClamped * 10); // 0..1000（‰）
       const cmrPctRounded = cmrPermille / 10;
 
-      const cm = Math.floor(salesRaw * cmrPermille / 1000);
-      const bep = cmrPermille>0 ? Math.ceil(fixedRaw * 1000 / cmrPermille) : Infinity;
+      const cm = Math.floor(salesRaw * cmrPermille / 1000); // 切り捨て
+      const bep = cmrPermille>0 ? Math.ceil(fixedRaw * 1000 / cmrPermille) : Infinity; // 切り上げ
       const profit = cm - fixedRaw;
 
       return {sales:salesRaw,fixed:fixedRaw,cmrPct:cmrPctRounded,cmrPermille,cm,profit,bep};
     }
 
+    /* =================== 描画 =================== */
     function arrow(x1,y1,x2,y2,c){
       ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
       ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
@@ -262,7 +284,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
       ctx.closePath(); ctx.fill();
     }
-
     function drawFixed(mt,maxV,xCMArrow){
       const BR=brand();
       const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
@@ -283,7 +304,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,L), y-8);
       }
     }
-
     function draw(mt){
       const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed, isFinite(targetLineValue)?targetLineValue:0)*1.15;
       const hide=toggle.checked && !revealedByPlay;
@@ -297,7 +317,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
       // 目盛り
       ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-      ctx.fillStyle=AXIS_TICK_COLOR;
+      ctx.fillStyle='rgba(71,85,105,0.40)';
       for(let i=0;i<=5;i++){
         const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
         ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
@@ -308,7 +328,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       const xSalesArrow=dims.W-dims.MARGIN-18;
       const xCMArrow=xSalesArrow-28;
 
-      // 固定費帯
       drawFixed(mt,maxV,xCMArrow);
 
       // 必要売上高ライン
@@ -415,6 +434,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     }
     function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
+    /* ========== UI ロジック ========== */
     function applyOrderChallenge(){
       $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
       $('guideCMR').textContent='② 限界利益率は何％ですか？';
@@ -522,7 +542,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
     }
 
-    // テキスト入力とスライダーのリンク（リアルタイム3桁区切り対応）
+    // テキスト入力とスライダーのリンク（安定版）
     function linkCurrency(t, r, hardMax=null){
       const toR=()=>{
         const n = formatCurrencyInput(t);
@@ -538,6 +558,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
         if(toggle.checked){ clearCheckVisuals(); }
         revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly();
       };
+      t.addEventListener('compositionstart', ()=>composing.set(t,true));
+      t.addEventListener('compositionend',  ()=>{ composing.set(t,false); toR(); });
       t.addEventListener('input',toR);
       t.addEventListener('change',toR);
       t.addEventListener('blur',toR);
@@ -586,7 +608,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
     }
     function setupCanvas(){
-      dpr=Math.max(1,window.devicePixelRatio||1);
+      const dpr=Math.max(1,window.devicePixelRatio||1);
       cv.width=Math.round(dims.W*dpr); cv.height=Math.round(dims.H*dpr);
       cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px';
       ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
@@ -597,7 +619,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r63g] ResizeObserver 初期化失敗:', e); }
+      }catch(e){ console.warn('[r63h] ResizeObserver 初期化失敗:', e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
