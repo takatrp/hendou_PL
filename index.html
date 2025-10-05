@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- internal version: r71
-  - 「解説」ボタンの文字色を #578899 に設定
-  - 売上高/固定費：安定整形（IME合成中は整形しない、全角/丸数字→半角、キャレット維持）
-  - 限界利益率：同様に安定整形（小数1桁まで、0〜100%に強制、全角→半角／句読点→.）
-  - 計算の丸め統一：CM=floor, BEP=ceil
+<!-- internal version: r72
+  - フッターをツールポータル準拠のミニ版に刷新（CC BY-NC-SA 4.0、利用条件、事務所リンク下線）
+  - 年号（©）と最終更新日（document.lastModified→YYYY-MM-DD）を自動反映
+  - 「解説」ボタンの文字色 #578899 を維持
+  - 数値入力の安定化（売上高/固定費/限界利益率）、丸め統一：CM=floor, BEP=ceil
 -->
 <html lang="ja">
 <head>
@@ -31,11 +31,9 @@ html,body{margin:0;height:100%;width:100%;position:fixed;inset:0;overflow:auto;o
 .logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
 h1{font-size:18px;margin:0}
 .title-actions{margin-left:auto;display:flex;gap:8px}
-.btn{appearance:none;border:1px solid var(--line-dark);background:#fff;border-radius:12px;padding:6px 10px;font-weight:700;cursor:pointer}
+.btn{appearance:none;border:1px solid var(--line-dark);background:#fff;border-radius:12px;padding:6px 10px;font-weight:700;cursor:pointer;color:#578899}
 .btn:hover{border-color:#94a3b8}
 .btn:active{transform:translateY(1px)}
-/* 「解説」ボタンの文字色を #578899 に固定 */
-#openExplain{color:#578899}
 
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
@@ -64,12 +62,21 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 #targetLabel,#targetShown{font-weight:700}
 .calc-note{font-weight:700;color:#578899;background:#eef7fa;border:1px solid #d6e7ee;border-radius:8px;padding:6px 8px;margin-top:6px}
 
-/* フッター（リンクは色継承＋下線） */
-.footer{display:flex;justify-content:center;margin:12px 0 2px;color:#334155;font-size:12px}
-.footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
-
-.diff-uline-blue{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#0ea5e9;text-underline-offset:2px}
-.diff-uline-red{font-weight:700;text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:var(--danger);text-underline-offset:2px}
+/* --- フッター（ミニ版） --- */
+footer.mk-mini{
+  margin:14px 0 2px;
+  font-size:12px;
+  color:#334155;
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+footer.mk-mini a{
+  color:inherit;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
 
 @media (max-width:480px){
   h1{font-size:17px}
@@ -161,19 +168,37 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       </div>
     </div>
 
-    <div class="footer">
-      <small>
-        Copyright (c) 2025
-        <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener">税理士法人松本会計事務所</a>
-        All Rights Reserved. / r71
-      </small>
-    </div>
+    <!-- ミニフッター（ツールポータル準拠） -->
+    <footer class="mk-mini">
+      © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
+      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
+      <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
+      <span id="build-rev">r72</span>（<span id="last-updated-date"></span>）
+    </footer>
   </div>
 </div>
 
 <script>
 'use strict';
 (function(){
+  const VERSION='r72';
+
+  // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
+  (function syncFooterMeta(){
+    const yEl = document.getElementById('cpy-year');
+    const dEl = document.getElementById('last-updated-date');
+    const rEl = document.getElementById('build-rev');
+    if(yEl){ yEl.textContent = String(new Date().getFullYear()); }
+    if(dEl){
+      const d = new Date(document.lastModified);
+      const yyyy = String(d.getFullYear());
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      dEl.textContent = `${yyyy}-${mm}-${dd}`;
+    }
+    if(rEl){ rEl.textContent = VERSION; }
+  })();
+
   const onReady = (fn) => {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', fn, { once:true });
@@ -183,7 +208,6 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
   };
 
   onReady(() => {
-    const VERSION='r71';
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
     const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
@@ -192,8 +216,8 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
     const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
-    const cv=$('cv'); if(!cv){ console.error('[r71] canvas#cv が見つかりません。'); return; }
-    const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error('[r71] 2Dコンテキスト取得不可'); return; }
+    const cv=$('cv'); if(!cv){ console.error(`[${VERSION}] canvas#cv が見つかりません。`); return; }
+    const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error(`[${VERSION}] 2Dコンテキスト取得不可`); return; }
 
     // 「解説」ボタン：画像を別タブで開く（日本語ファイル名をエンコード）
     const explainBtn = $('openExplain');
@@ -280,7 +304,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       if(composing.get(el)) return Number(el.value||0);
       const before = String(el.value||'');
       const sel = el.selectionEnd ?? before.length;
-      const allowedLeft = cleanPercentString(before.slice(0, sel)).length; // 左側の有効文字数
+      const allowedLeft = cleanPercentString(before.slice(0, sel)).length;
 
       let cleaned = cleanPercentString(before);
       let num = Number(cleaned);
@@ -382,7 +406,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
 
       // 目盛り
       ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-      ctx.fillStyle=AXIS_TICK_COLOR;
+      ctx.fillStyle='rgba(71,85,105,0.40)';
       for(let i=0;i<=5;i++){
         const val=(maxV/5)*i, h=sy(val,maxV), y=dims.GROUND_Y-h;
         ctx.beginPath(); ctx.moveTo(dims.MARGIN,y); ctx.lineTo(dims.W-dims.MARGIN,y); ctx.stroke();
@@ -702,7 +726,7 @@ input[type="range"]::-webkit-slider-thumb{appearance:none;width:20px;height:20px
       try{
         const ro = new ResizeObserver(()=>layout());
         if(cv.parentElement) ro.observe(cv.parentElement);
-      }catch(e){ console.warn('[r71] ResizeObserver 初期化失敗:', e); }
+      }catch(e){ console.warn(`[${VERSION}] ResizeObserver 初期化失敗:`, e); }
     }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
 
