@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<!-- internal version: r73
-  - ガイド付きチュートリアル実装（オーバーレイ/ハイライト/説明カード/前次スキップ/キーボード操作）
-  - チュートリアル開始ボタンをタイトル右に追加
-  - 既存機能（数値入力安定化、丸め統一、解説ボタン、ミニフッター、gtag）を維持
+<!-- internal version: r75
+  - チュートリアルの「ライセンスとバージョン」ステップを完全削除（全7ステップ）
+  - 入力安定化・解説ボタン・ミニフッター・gtag 等は維持
 -->
 <html lang="ja">
 <head>
@@ -192,7 +191,7 @@ footer.mk-mini a{
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r73</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r75</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -200,7 +199,7 @@ footer.mk-mini a{
 <script>
 'use strict';
 (function(){
-  const VERSION='r73';
+  const VERSION='r75';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -229,7 +228,6 @@ footer.mk-mini a{
   onReady(() => {
     const DEFAULTS={sales:1000000, cmr:60, fixed:700000};
     const BLUE='#0ea5e9';
-    const AXIS_TICK_COLOR='rgba(71,85,105,0.40)';
     const $=id=>document.getElementById(id);
 
     const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
@@ -247,7 +245,7 @@ footer.mk-mini a{
       });
     }
 
-    /* ===================== 入力系（既存ロジックを維持） ===================== */
+    /* ===================== 入力・状態 ===================== */
     let revealedByPlay=false, playing=false, apexMarkerY=null;
     let pendingCheck=false, pendingVals=null, showTargetLine=false, targetLineValue=null, showMOSBand=false;
 
@@ -267,6 +265,7 @@ footer.mk-mini a{
     const targetShown=$('targetShown'), statusEl=$('status'), diffMsgEl=$('diffMsg');
     const mBEPcard=$('mBEPcard');
 
+    /* ===== 入力正規化（全角/丸数字/句読点対応） ===== */
     const CIRCLED_MAP = Object.fromEntries([['①','1'],['②','2'],['③','3'],['④','4'],['⑤','5'],['⑥','6'],['⑦','7'],['⑧','8'],['⑨','9'],['⑩','10'],['⑪','11'],['⑫','12'],['⑬','13'],['⑭','14'],['⑮','15'],['⑯','16'],['⑰','17'],['⑱','18'],['⑲','19'],['⑳','20']]);
     function normalizeDigits(str){ if(!str) return ''; str=str.replace(/[０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0)); str=str.replace(/[①-⑳]/g,s=>CIRCLED_MAP[s]||''); return str;}
     function extractDigits(str){ return normalizeDigits(str).replace(/\D+/g,''); }
@@ -275,29 +274,49 @@ footer.mk-mini a{
 
     function formatCurrencyInput(el){
       if(composing.get(el)) return parseComma(el.value);
-      const valueBefore = el.value;
-      const sel = el.selectionEnd ?? valueBefore.length;
-      const digitsLeft = extractDigits(valueBefore.slice(0, sel)).length;
-      const raw = extractDigits(valueBefore);
+      const before = el.value;
+      const sel = el.selectionEnd ?? before.length;
+      const digitsLeft = extractDigits(before.slice(0, sel)).length;
+      const raw = extractDigits(before);
       const n = Number(raw||0);
       const formatted = isFinite(n) ? n.toLocaleString('ja-JP') : '';
       let pos=0, count=0;
-      for(let i=0;i<formatted.length;i++){ if(/\d/.test(formatted[i])) count++; if(count>=digitsLeft){ pos=i+1; break; } }
-      if(digitsLeft===extractDigits(valueBefore).length) pos=formatted.length;
+      for(let i=0;i<formatted.length;i++){
+        if(/\d/.test(formatted[i])) count++;
+        if(count>=digitsLeft){ pos=i+1; break; }
+      }
+      if(digitsLeft===extractDigits(before).length) pos=formatted.length;
       el.value = formatted; try{ el.setSelectionRange(pos,pos); }catch(_){}
       return n;
     }
-    function cleanPercentString(s){ s=normalizeDigits(String(s??'')); s=s.replace(/[，、｡。．]/g,'.'); let out='',seen=false; for(const ch of s){ if(/\d/.test(ch)) out+=ch; else if(ch==='.'&&!seen){ out+='.'; seen=true;} } if(seen){ const [a,b='']=out.split('.'); out=a+'.'+b.slice(0,1);} return out;}
+    function cleanPercentString(s){
+      s=normalizeDigits(String(s??'')); s=s.replace(/[，、｡。．]/g,'.');
+      let out='',seen=false;
+      for(const ch of s){ if(/\d/.test(ch)) out+=ch; else if(ch==='.'&&!seen){ out+='.'; seen=true; } }
+      if(seen){ const [a,b='']=out.split('.'); out=a+'.'+b.slice(0,1); }
+      return out;
+    }
     function formatPercentInput(el){
       if(composing.get(el)) return Number(el.value||0);
-      const before=String(el.value||''); const sel=el.selectionEnd ?? before.length; const allowedLeft=cleanPercentString(before.slice(0,sel)).length;
-      let cleaned=cleanPercentString(before); let num=Number(cleaned); if(!isFinite(num)) num=0; num=Math.min(100,Math.max(0,num));
-      if(cleaned.includes('.')){ const parts=String(num).split('.'); const decimals=Math.min(1,(cleanPercentString(before).split('.')[1]||'').length); cleaned=parts[0]+(decimals?'.'+(parts[1]||'0').slice(0,decimals):''); } else { cleaned=String(Math.trunc(num)); }
+      const before=String(el.value||''); const sel=el.selectionEnd ?? before.length;
+      const allowedLeft=cleanPercentString(before.slice(0,sel)).length;
+      let cleaned=cleanPercentString(before);
+      let num=Number(cleaned); if(!isFinite(num)) num=0; num=Math.min(100,Math.max(0,num));
+      if(cleaned.includes('.')){
+        const parts=String(num).split('.');
+        const decimals=Math.min(1,(cleanPercentString(before).split('.')[1]||'').length);
+        cleaned=parts[0]+(decimals?'.'+(parts[1]||'0').slice(0,decimals):'');
+      }else{
+        cleaned=String(Math.trunc(num));
+      }
       el.value=cleaned;
-      let pos=0,cnt=0; for(let i=0;i<cleaned.length;i++){ if(/\d|\./.test(cleaned[i])) cnt++; if(cnt>=allowedLeft){ pos=i+1; break; } } if(allowedLeft===cleanPercentString(before).length) pos=cleaned.length; try{ el.setSelectionRange(pos,pos);}catch(_){}
+      let pos=0,cnt=0; for(let i=0;i<cleaned.length;i++){ if(/\d|\./.test(cleaned[i])) cnt++; if(cnt>=allowedLeft){ pos=i+1; break; } }
+      if(allowedLeft===cleanPercentString(before).length) pos=cleaned.length;
+      try{ el.setSelectionRange(pos,pos);}catch(_){}
       return Number(cleaned||0);
     }
 
+    /* ===== 計算（端数整合：permilleで丸め、端数のズレ解消） ===== */
     function calc(){
       const salesRaw = parseComma(I.sales.value);
       const fixedRaw = parseComma(I.fixed.value);
@@ -311,22 +330,46 @@ footer.mk-mini a{
       return {sales:salesRaw,fixed:fixedRaw,cmrPct:cmrPctRounded,cmrPermille,cm,profit,bep};
     }
 
-    function arrow(x1,y1,x2,y2,c){ ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); const a=Math.atan2(y2-y1,x2-x1),h=8; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.closePath(); ctx.fill();}
-    function doubleArrowVertical(x,yTop,yBot,color){ ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke(); const h=8; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6)); ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6)); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(x,yBot); ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6)); ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6)); ctx.closePath(); ctx.fill();}
-
+    /* ===== 描画ユーティリティ ===== */
+    function arrow(x1,y1,x2,y2,c){
+      ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      const a=Math.atan2(y2-y1,x2-x1),h=8;
+      ctx.beginPath(); ctx.moveTo(x2,y2);
+      ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+      ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+      ctx.closePath(); ctx.fill();
+    }
+    function doubleArrowVertical(x,yTop,yBot,color){
+      ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
+      const h=8;
+      ctx.beginPath(); ctx.moveTo(x,yTop);
+      ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x,yBot);
+      ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx.closePath(); ctx.fill();
+    }
     function drawFixed(mt,maxV,xCMArrow){
-      const BR=brand(); const barL=dims.MARGIN, barR=dims.W-dims.MARGIN; const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
+      const BR=brand(); const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
+      const hH=sy(mt.fixed,maxV), y=dims.GROUND_Y-hH, hgt=Math.max(0,dims.GROUND_Y-y);
       if(IS_IOS_MOBILE){
-        const startX=0, width=(barR-startX); ctx.fillStyle='rgba(87,136,153,0.22)'; ctx.fillRect(startX,y,width,hgt);
+        const startX=0, width=(barR-startX);
+        ctx.fillStyle='rgba(87,136,153,0.22)'; ctx.fillRect(startX,y,width,hgt);
         ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,dims.MARGIN-2), y-8);
       }else{
-        const L=barL+40, Rlimit=xCMArrow? (xCMArrow-30):(barR-40), R=Math.max(L+24, Math.min(barR-40, Rlimit)), W=R-L;
+        const L=barL+40, Rlimit=xCMArrow? (xCMArrow-30):(barR-40);
+        const R=Math.max(L+24, Math.min(barR-40, Rlimit)), W=R-L;
         ctx.fillStyle='rgba(87,136,153,0.15)'; ctx.fillRect(L,y,W,hgt);
         ctx.strokeStyle=BR; ctx.lineWidth=2; ctx.strokeRect(L,y,W,hgt);
         ctx.fillStyle=BR; ctx.fillText('固定費（ハードル）: '+jpy(mt.fixed), Math.max(6,L), y-8);
       }
     }
 
+    /* ===== メイン描画 ===== */
     function draw(mt){
       const maxV=Math.max(1,mt.sales,mt.cm,mt.fixed, isFinite(targetLineValue)?targetLineValue:0)*1.15;
       const hide=toggle.checked && !revealedByPlay;
@@ -351,8 +394,10 @@ footer.mk-mini a{
       const xSalesArrow=dims.W-dims.MARGIN-18;
       const xCMArrow=xSalesArrow-28;
 
+      // 固定費帯
       drawFixed(mt,maxV,xCMArrow);
 
+      // 必要売上高ライン
       if(showTargetLine && isFinite(targetLineValue)){
         const yT=dims.GROUND_Y - sy(targetLineValue, maxV);
         ctx.save(); ctx.setLineDash([6,4]); ctx.strokeStyle=BLUE;
@@ -374,7 +419,7 @@ footer.mk-mini a{
         ctx.restore();
       }
 
-      // 売上
+      // 売上（横矢印）
       const sH=sy(mt.sales,maxV), sY=dims.GROUND_Y-sH;
       ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#475569';
       ctx.beginPath(); ctx.moveTo(dims.MARGIN,sY); ctx.lineTo(xSalesArrow-2,sY); ctx.stroke(); ctx.restore();
@@ -383,18 +428,18 @@ footer.mk-mini a{
       else{ ctx.save(); ctx.fillStyle='#475569'; ctx.textAlign='right'; ctx.fillText(tSales, dims.W-6, ySales); ctx.restore(); }
       arrow(xSalesArrow, sY, xSalesArrow, dims.GROUND_Y-3, brand());
 
-      // 限界利益
+      // 限界利益（縦矢印）
       const b=mt.cm, bH=sy(b,maxV), bY=dims.GROUND_Y-bH;
       if(!hide){
-        ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle=BLUE;
+        ctx.save(); ctx.setLineDash([3,4]); ctx.strokeStyle='#0ea5e9';
         ctx.beginPath(); ctx.moveTo(dims.MARGIN,bY); ctx.lineTo(xCMArrow-2,bY); ctx.stroke(); ctx.restore();
-        ctx.fillStyle=BLUE;
+        ctx.fillStyle='#0ea5e9';
         const tCM='限界利益: '+jpy(b); const w=ctx.measureText(tCM).width;
         const xText=Math.min(dims.W-dims.MARGIN-w, xCMArrow+8);
         ctx.fillText(tCM, xText, bY-6);
         arrow(xCMArrow, dims.GROUND_Y-3, xCMArrow, bY, brand());
       }else{
-        ctx.save(); ctx.fillStyle=BLUE; ctx.textAlign='right';
+        ctx.save(); ctx.fillStyle='#0ea5e9'; ctx.textAlign='right';
         ctx.fillText('限界利益: ???', xCMArrow-6, ySales+16);
         ctx.restore();
       }
@@ -456,6 +501,7 @@ footer.mk-mini a{
     }
     function redrawOnly(){ const mt=calc(); renderMetrics(mt); draw(mt); }
 
+    /* ===== UIロジック ===== */
     function applyOrderChallenge(){
       $('guideFixed').textContent='① （追加の）固定費はいくらですか？';
       $('guideCMR').textContent='② 限界利益率は何％ですか？';
@@ -503,6 +549,8 @@ footer.mk-mini a{
       mBEPcard.classList.remove('accent');
       redrawOnly();
     }
+
+    /* ===== アニメーション ===== */
     function playOnce(){
       if(playing) return; playing=true; resultEl.textContent=''; resultEl.classList.remove('ng');
       const mt=calc();
@@ -544,17 +592,22 @@ footer.mk-mini a{
       }
       requestAnimationFrame(frame);
     }
+
     function clearCheckVisuals(){
       checkResult.style.display='none'; metrics.style.display = toggle.checked ? 'none' : 'grid';
       showTargetLine=false; targetLineValue=null; showMOSBand=false;
       pendingCheck=false; pendingVals=null; mBEPcard.classList.remove('accent');
     }
+
+    /* ===== 入力連携（テキスト⇄レンジ） ===== */
     function linkCurrency(t, r, hardMax=null){
       const toR=()=>{ const n = formatCurrencyInput(t); const v = Number(n);
         if(hardMax && v>hardMax) r.max=hardMax; else if(v>Number(r.max)) r.max=v;
         r.value=String(v); if(toggle.checked){ clearCheckVisuals(); }
         revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
-      const toN=()=>{ const v=Number(r.value||0); t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; if(toggle.checked){ clearCheckVisuals(); }
+      const toN=()=>{ const v=Number(r.value||0);
+        t.value=isFinite(v)?Math.round(v).toLocaleString('ja-JP'):''; 
+        if(toggle.checked){ clearCheckVisuals(); }
         revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
       t.addEventListener('compositionstart', ()=>composing.set(t,true));
       t.addEventListener('compositionend',  ()=>{ composing.set(t,false); toR(); });
@@ -564,48 +617,72 @@ footer.mk-mini a{
     function linkPercent(t, r){
       const toR=()=>{ const n = formatPercentInput(t);
         const v = Math.min(100, Math.max(0, Number.isFinite(n)? n : 0)); r.value = String(v);
-        if(toggle.checked){ clearCheckVisuals(); } revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
       const toN=()=>{ let v = Number(r.value||0); if(!isFinite(v)) v=0; v = Math.min(100, Math.max(0, v));
         const txt = (Math.round(v*10)/10).toFixed(1).replace(/\.0$/, ''); t.value = txt;
-        if(toggle.checked){ clearCheckVisuals(); } revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
+        if(toggle.checked){ clearCheckVisuals(); }
+        revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; redrawOnly(); };
       t.addEventListener('compositionstart', ()=>composing.set(t,true));
       t.addEventListener('compositionend',  ()=>{ composing.set(t,false); toR(); });
       t.addEventListener('input',toR); t.addEventListener('change',toR); t.addEventListener('blur',toR);
       r.addEventListener('input',toN); r.addEventListener('change',toN);
     }
+
     linkCurrency(I.sales,I.salesRange,5000000);
     linkPercent(I.cmr,I.cmrRange);
     linkCurrency(I.fixed,I.fixedRange,2000000);
-    toggle.addEventListener('change', ()=>{ if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
-      revealedByPlay=false; apexMarkerY=null; resultEl.textContent=''; clearCheckVisuals(); redrawOnly(); });
+
+    toggle.addEventListener('change', ()=>{
+      if(toggle.checked){ applyOrderChallenge(); } else { applyOrderNormal(); }
+      revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
+      clearCheckVisuals(); redrawOnly();
+    });
     $('play').addEventListener('click', ()=>playOnce());
     $('reset').addEventListener('click', resetAll);
     $('reset2').addEventListener('click', resetAll);
     $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
-    function computeDims(){ const parent = cv.parentElement; const parentW = (parent && parent.clientWidth) ? parent.clientWidth : window.innerWidth;
-      const vpW = window.innerWidth; const isMobile = vpW < 820; const isLandscape = vpW > window.innerHeight; const avail = Math.min(parentW, vpW - 32);
-      const extraInset = isMobile ? 12 : 10; const w = Math.max(280, avail - extraInset*2); const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66; const h = Math.max(220, Math.round(w*ratio));
-      dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36; }
-    function setupCanvas(){ const dpr=Math.max(1,window.devicePixelRatio||1);
+
+    /* ===== レイアウト ===== */
+    function computeDims(){
+      const parent = cv.parentElement; const parentW = (parent && parent.clientWidth) ? parent.clientWidth : window.innerWidth;
+      const vpW = window.innerWidth; const isMobile = vpW < 820; const isLandscape = vpW > window.innerHeight;
+      const avail = Math.min(parentW, vpW - 32);
+      const extraInset = isMobile ? 12 : 10;
+      const w = Math.max(280, avail - extraInset*2);
+      const ratio = isMobile ? (isLandscape ? 0.52 : 0.60) : 0.66;
+      const h = Math.max(220, Math.round(w*ratio));
+      dims.W=w; dims.H=h; dims.MARGIN=36; dims.GROUND_Y=h-36;
+    }
+    function setupCanvas(){
+      const dpr=Math.max(1,window.devicePixelRatio||1);
       cv.width=Math.round(dims.W*dpr); cv.height=Math.round(dims.H*dpr);
-      cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px'; ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr); }
+      cv.style.width=dims.W+'px'; cv.style.height=dims.H+'px';
+      ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+    }
     function layout(){ computeDims(); setupCanvas(); redrawOnly(); }
-    if('ResizeObserver' in window){ try{ const ro = new ResizeObserver(()=>layout()); if(cv.parentElement) ro.observe(cv.parentElement);}catch(e){ console.warn(`[${VERSION}] ResizeObserver 初期化失敗:`, e); } }
+    if('ResizeObserver' in window){
+      try{ const ro = new ResizeObserver(()=>layout()); if(cv.parentElement) ro.observe(cv.parentElement);}catch(e){ console.warn(`[${VERSION}] ResizeObserver 初期化失敗:`, e); }
+    }
     ['load','pageshow','orientationchange','resize'].forEach(ev=>window.addEventListener(ev,()=>requestAnimationFrame(layout)));
-    (function init(){ I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP'); I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP'); I.cmr.value=String(DEFAULTS.cmr); applyOrderNormal(); layout(); })();
+    (function init(){
+      I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
+      I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
+      I.cmr.value=String(DEFAULTS.cmr);
+      applyOrderNormal();
+      layout();
+    })();
 
     /* ===================== チュートリアル ===================== */
     const TOUR_KEY='mkvpl_tour_dismissed_v1';
     const steps = [
-      { sel: '.title-row', title:'ようこそ！', body:'このツールで「変動損益計算書（CVP）」の構造を、ボールの動きで直感的に学べます。右の「解説」で概念図も確認できます。' },
-      { sel: '#paramSales', title:'売上高（S）', body:'売上高はボールを落とす「高さ」。数値入力かスライダーで調整すると、リアルタイムでカンマ表示・グラフに反映されます。' },
-      { sel: '#paramCMR', title:'限界利益率（CMR）', body:'売上に対してどれだけ跳ね返るかの「バウンド率」。0〜100%の範囲で、小数1桁まで入力できます。' },
-      { sel: '#paramFixed', title:'固定費（FC）', body:'超えるべき「ハードルの高さ」。固定費を越えるほど、利益が確保されます。' },
-      { sel: '#play', title:'黒字判定（再生ボタン）', body:'「黒字かどうか確認」を押すと、ボールが跳ねます。頂点（限界利益）がハードル（固定費）を越えれば黒字！' },
-      { sel: '#challengeBox', title:'チャレンジモード', body:'チェックを入れると、ガイド順に「必要売上高（損益分岐点）」を自分で考え、答え合わせができます。' },
-      { sel: '#metrics', title:'主要指標の読み方', body:'・限界利益＝売上×CMR（小数）<br>・損益分岐点売上高＝固定費÷CMR（小数）<br>・経常利益≒限界利益−固定費' },
-      { sel: '.mk-mini', title:'ライセンスとバージョン', body:'©年 事務所名｜CC BY-NC-SA 4.0｜利用条件｜rXX（最終更新日）。事務所名は公式サイトにリンクしています。' },
-      { sel: '#cardGraph', title:'やってみよう', body:'まずは「売上高」「限界利益率」「固定費」を動かし、ボールの動きと結果を観察してみましょう。では実践！' }
+      { sel: '.title-row',   title:'ようこそ！',             body:'このツールで「変動損益計算書（CVP）」の構造を、ボールの動きで直感的に学べます。右の「解説」で概念図も確認できます。' },
+      { sel: '#paramSales',  title:'売上高（S）',            body:'売上高はボールを落とす「高さ」。数値入力かスライダーで調整すると、リアルタイムでカンマ表示・グラフに反映されます。' },
+      { sel: '#paramCMR',    title:'限界利益率（CMR）',      body:'売上に対してどれだけ跳ね返るかの「バウンド率」。0〜100%の範囲で、小数1桁まで入力できます。' },
+      { sel: '#paramFixed',  title:'固定費（FC）',           body:'超えるべき「ハードルの高さ」。固定費を越えるほど、利益が確保されます。' },
+      { sel: '#play',        title:'黒字判定（再生ボタン）', body:'「黒字かどうか確認」を押すと、ボールが跳ねます。頂点（限界利益）がハードル（固定費）を越えれば黒字！' },
+      { sel: '#challengeBox',title:'チャレンジモード',       body:'チェックを入れると、ガイド順に「必要売上高（損益分岐点）」を自分で考え、答え合わせができます。' },
+      { sel: '#cardGraph',   title:'やってみよう',           body:'まずは「売上高」「限界利益率」「固定費」を動かし、ボールの動きと結果を観察してみましょう。では実践！' }
     ];
 
     let tourIndex = 0;
@@ -627,7 +704,7 @@ footer.mk-mini a{
       focusEl.style.width  = r.w+'px';
       focusEl.style.height = r.h+'px';
 
-      // パネルはターゲットの下に寄せる（はみ出す場合は上に）
+      // パネルの配置
       const panelW = Math.min(560, window.innerWidth*0.92);
       const margin = 12;
       const belowY = r.y + r.h + margin;
@@ -642,7 +719,7 @@ footer.mk-mini a{
       titleEl.textContent = step.title;
       bodyEl.innerHTML = step.body;
 
-      // ボタン活性
+      // ボタン
       prevBtn.disabled = (tourIndex===0);
       nextBtn.textContent = (tourIndex===steps.length-1) ? '完了' : '次へ';
     }
@@ -692,7 +769,6 @@ footer.mk-mini a{
       maskEl.style.display='block'; focusEl.style.display='block'; panelEl.style.display='block';
       document.body.style.overflow='hidden';
       placeFocus();
-      // フォーカス移譲
       nextBtn.focus();
     }
     function endTour(){
@@ -708,7 +784,7 @@ footer.mk-mini a{
     const tourBtn = document.getElementById('startTour');
     if(tourBtn){ tourBtn.addEventListener('click', ()=> startTour(0)); }
 
-    // 初回ガイドの軽い案内（自動起動はしない）
+    // 初回のみヒント
     try{
       if(!localStorage.getItem(TOUR_KEY)){
         tourBtn.title = '初めての方はここからチュートリアルを開始できます';
