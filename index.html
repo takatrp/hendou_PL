@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<!-- internal version: r75
-  - チュートリアルの「ライセンスとバージョン」ステップを完全削除（全7ステップ）
-  - 入力安定化・解説ボタン・ミニフッター・gtag 等は維持
+<!-- internal version: r76
+  - チュートリアル中、対象要素のみクリア表示（背景のみブラー）
+  - .mk-tour-elevate の追加と z-index 調整を実装
+  - 既存機能（入力安定化、permille丸め、解説ボタン、ミニフッター、gtag、STEPは7つ）を維持
 -->
 <html lang="ja">
 <head>
@@ -93,9 +94,22 @@ footer.mk-mini a{
 }
 
 /* ===== チュートリアル（オーバーレイ/ハイライト/パネル） ===== */
-.mk-tour-mask{position:fixed;inset:0;background:rgba(15,23,42,.56);backdrop-filter:saturate(120%) blur(2px);z-index:9998}
-.mk-tour-focus{position:fixed;border-radius:12px;box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);z-index:9999;pointer-events:none;transition:all .20s ease}
-.mk-tour-panel{position:fixed;z-index:10000;max-width:min(560px, 92vw);background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 36px rgba(0,0,0,.22);padding:12px}
+.mk-tour-mask{
+  position:fixed;inset:0;background:rgba(15,23,42,.56);
+  backdrop-filter:saturate(120%) blur(2px);
+  z-index:9998; /* ← 背景ぼかし層 */
+}
+.mk-tour-focus{
+  position:fixed;border-radius:12px;
+  box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);
+  z-index:10001; /* ← 枠は対象より前面 */
+  pointer-events:none;transition:all .20s ease
+}
+.mk-tour-panel{
+  position:fixed;z-index:10002; /* ← 最前面にパネル */
+  max-width:min(560px, 92vw);background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 14px 36px rgba(0,0,0,.22);padding:12px
+}
 .mk-tour-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .mk-tour-step{font-size:12px;color:#475569}
 .mk-tour-title{font-weight:800}
@@ -104,6 +118,13 @@ footer.mk-mini a{
 .mk-tour-actions .tbtn{border-radius:10px;border:1px solid var(--line-dark);background:#fff;padding:6px 10px;font-weight:700;cursor:pointer}
 .mk-tour-actions .tbtn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .mk-tour-actions .tbtn:disabled{opacity:.55;cursor:not-allowed}
+
+/* ★ 追加：対象要素を持ち上げ、ブラーの前面に出す（対象はクッキリ表示） */
+.mk-tour-elevate{
+  position:relative !important;
+  z-index:10000 !important; /* mask(9998) より上、focus(10001)・panel(10002)より下 */
+  isolation:isolate;
+}
 </style>
 </head>
 <body>
@@ -191,7 +212,7 @@ footer.mk-mini a{
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r75</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r76</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -199,7 +220,7 @@ footer.mk-mini a{
 <script>
 'use strict';
 (function(){
-  const VERSION='r75';
+  const VERSION='r76';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -316,7 +337,7 @@ footer.mk-mini a{
       return Number(cleaned||0);
     }
 
-    /* ===== 計算（端数整合：permilleで丸め、端数のズレ解消） ===== */
+    /* ===== 計算（permilleで丸め、端数のズレ解消） ===== */
     function calc(){
       const salesRaw = parseComma(I.sales.value);
       const fixedRaw = parseComma(I.fixed.value);
@@ -332,26 +353,28 @@ footer.mk-mini a{
 
     /* ===== 描画ユーティリティ ===== */
     function arrow(x1,y1,x2,y2,c){
-      ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      const ctx2=ctx;
+      ctx2.strokeStyle=c; ctx2.fillStyle=c; ctx2.lineWidth=2;
+      ctx2.beginPath(); ctx2.moveTo(x1,y1); ctx2.lineTo(x2,y2); ctx2.stroke();
       const a=Math.atan2(y2-y1,x2-x1),h=8;
-      ctx.beginPath(); ctx.moveTo(x2,y2);
-      ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
-      ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
-      ctx.closePath(); ctx.fill();
+      ctx2.beginPath(); ctx2.moveTo(x2,y2);
+      ctx2.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6));
+      ctx2.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6));
+      ctx2.closePath(); ctx2.fill();
     }
     function doubleArrowVertical(x,yTop,yBot,color){
-      ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yBot); ctx.stroke();
+      const ctx2=ctx;
+      ctx2.strokeStyle=color; ctx2.fillStyle=color; ctx2.lineWidth=2;
+      ctx2.beginPath(); ctx2.moveTo(x,yTop); ctx2.lineTo(x,yBot); ctx2.stroke();
       const h=8;
-      ctx.beginPath(); ctx.moveTo(x,yTop);
-      ctx.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
-      ctx.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
-      ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x,yBot);
-      ctx.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
-      ctx.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
-      ctx.closePath(); ctx.fill();
+      ctx2.beginPath(); ctx2.moveTo(x,yTop);
+      ctx2.lineTo(x-h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx2.lineTo(x+h*Math.cos(Math.PI/6), yTop+h*Math.sin(Math.PI/6));
+      ctx2.closePath(); ctx2.fill();
+      ctx2.beginPath(); ctx2.moveTo(x,yBot);
+      ctx2.lineTo(x-h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx2.lineTo(x+h*Math.cos(Math.PI/6), yBot-h*Math.sin(Math.PI/6));
+      ctx2.closePath(); ctx2.fill();
     }
     function drawFixed(mt,maxV,xCMArrow){
       const BR=brand(); const barL=dims.MARGIN, barR=dims.W-dims.MARGIN;
@@ -673,7 +696,7 @@ footer.mk-mini a{
       layout();
     })();
 
-    /* ===================== チュートリアル ===================== */
+    /* ===================== チュートリアル（対象を前面に持ち上げてクリア表示） ===================== */
     const TOUR_KEY='mkvpl_tour_dismissed_v1';
     const steps = [
       { sel: '.title-row',   title:'ようこそ！',             body:'このツールで「変動損益計算書（CVP）」の構造を、ボールの動きで直感的に学べます。右の「解説」で概念図も確認できます。' },
@@ -687,6 +710,7 @@ footer.mk-mini a{
 
     let tourIndex = 0;
     let maskEl, focusEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl;
+    let elevatedEl = null; // ★ 追加：持ち上げ中の要素
 
     function qs(sel){ return document.querySelector(sel); }
     function rectOf(el){
@@ -697,6 +721,14 @@ footer.mk-mini a{
     function placeFocus(){
       const step = steps[tourIndex]; const target = qs(step.sel);
       if(!target){ console.warn('Step target not found:', step.sel); return; }
+
+      // ★ 対象を前面に持ち上げ（前回の対象は解除）
+      if(elevatedEl && elevatedEl !== target){
+        elevatedEl.classList.remove('mk-tour-elevate');
+      }
+      target.classList.add('mk-tour-elevate');
+      elevatedEl = target;
+
       target.scrollIntoView({block:'center', behavior:'smooth'});
       const r = rectOf(target);
       focusEl.style.left = r.x+'px';
@@ -777,6 +809,11 @@ footer.mk-mini a{
       if(focusEl){ focusEl.style.display='none'; }
       if(panelEl){ panelEl.style.display='none'; }
       document.body.style.overflow='';
+      // ★ 解除：持ち上げクラス
+      if(elevatedEl){
+        elevatedEl.classList.remove('mk-tour-elevate');
+        elevatedEl = null;
+      }
       try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){}
     }
 
