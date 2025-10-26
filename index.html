@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<!-- internal version: r76
-  - チュートリアル中、対象要素のみクリア表示（背景のみブラー）
-  - .mk-tour-elevate の追加と z-index 調整を実装
+<!-- internal version: r77
+  - モバイル（スマホ）でのチュートリアル位置ずれを修正
+    * visualViewport の offset/resize/scroll に追従
+    * scrollIntoView 後の計測を rAF + scrollend で安定化
+    * パネル/フォーカスの座標を常に「可視ビューポート」基準に補正
   - 既存機能（入力安定化、permille丸め、解説ボタン、ミニフッター、gtag、STEPは7つ）を維持
 -->
 <html lang="ja">
@@ -97,16 +99,16 @@ footer.mk-mini a{
 .mk-tour-mask{
   position:fixed;inset:0;background:rgba(15,23,42,.56);
   backdrop-filter:saturate(120%) blur(2px);
-  z-index:9998; /* ← 背景ぼかし層 */
+  z-index:9998; /* 背景ぼかし層（対象より下） */
 }
 .mk-tour-focus{
   position:fixed;border-radius:12px;
   box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);
-  z-index:10001; /* ← 枠は対象より前面 */
-  pointer-events:none;transition:all .20s ease
+  z-index:10001; /* 枠は対象より上、パネルより下 */
+  pointer-events:none;transition:transform .2s ease, width .2s ease, height .2s ease, left .2s ease, top .2s ease;
 }
 .mk-tour-panel{
-  position:fixed;z-index:10002; /* ← 最前面にパネル */
+  position:fixed;z-index:10002; /* 最前面にパネル */
   max-width:min(560px, 92vw);background:#fff;border:1px solid var(--line);border-radius:16px;
   box-shadow:0 14px 36px rgba(0,0,0,.22);padding:12px
 }
@@ -119,10 +121,10 @@ footer.mk-mini a{
 .mk-tour-actions .tbtn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .mk-tour-actions .tbtn:disabled{opacity:.55;cursor:not-allowed}
 
-/* ★ 追加：対象要素を持ち上げ、ブラーの前面に出す（対象はクッキリ表示） */
+/* 対象要素を持ち上げ、ブラー前面でクッキリ表示 */
 .mk-tour-elevate{
   position:relative !important;
-  z-index:10000 !important; /* mask(9998) より上、focus(10001)・panel(10002)より下 */
+  z-index:10000 !important; /* mask(9998) より上、focus(10001)/panel(10002)より下 */
   isolation:isolate;
 }
 </style>
@@ -212,7 +214,7 @@ footer.mk-mini a{
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r76</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r77</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -220,7 +222,7 @@ footer.mk-mini a{
 <script>
 'use strict';
 (function(){
-  const VERSION='r76';
+  const VERSION='r77';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -337,7 +339,7 @@ footer.mk-mini a{
       return Number(cleaned||0);
     }
 
-    /* ===== 計算（permilleで丸め、端数のズレ解消） ===== */
+    /* ===== 計算（permilleで丸め） ===== */
     function calc(){
       const salesRaw = parseComma(I.sales.value);
       const fixedRaw = parseComma(I.fixed.value);
@@ -696,8 +698,8 @@ footer.mk-mini a{
       layout();
     })();
 
-    /* ===================== チュートリアル（対象を前面に持ち上げてクリア表示） ===================== */
-    const TOUR_KEY='mkvpl_tour_dismissed_v1';
+    /* ===================== チュートリアル（スマホ位置ずれ対策込み） ===================== */
+    const TOUR_KEY='mkvpl_tour_dismissed_v2'; // ← キー更新（前の値を消さない）
     const steps = [
       { sel: '.title-row',   title:'ようこそ！',             body:'このツールで「変動損益計算書（CVP）」の構造を、ボールの動きで直感的に学べます。右の「解説」で概念図も確認できます。' },
       { sel: '#paramSales',  title:'売上高（S）',            body:'売上高はボールを落とす「高さ」。数値入力かスライダーで調整すると、リアルタイムでカンマ表示・グラフに反映されます。' },
@@ -710,41 +712,74 @@ footer.mk-mini a{
 
     let tourIndex = 0;
     let maskEl, focusEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl;
-    let elevatedEl = null; // ★ 追加：持ち上げ中の要素
+    let elevatedEl = null;
 
     function qs(sel){ return document.querySelector(sel); }
-    function rectOf(el){
-      const r = el.getBoundingClientRect();
-      const pad = 8;
-      return { x: Math.max(8, r.left - pad), y: Math.max(8, r.top - pad), w: Math.min(window.innerWidth-16, r.width + pad*2), h: Math.min(window.innerHeight-16, r.height + pad*2) };
+    function vv(){ return window.visualViewport || null; }
+    function vvOffsetX(){ const v=vv(); return v ? v.offsetLeft : 0; }
+    function vvOffsetY(){ const v=vv(); return v ? v.offsetTop  : 0; }
+    function vvWidth(){ const v=vv(); return v ? v.width : window.innerWidth; }
+    function vvHeight(){ const v=vv(); return v ? v.height: window.innerHeight; }
+
+    // 安定スクロール：scrollIntoView の後に rAF×2 + scrollend を待ってから測定
+    function stableScrollIntoView(el){
+      return new Promise(resolve=>{
+        let done=false, timer=null;
+        function finish(){ if(done) return; done=true; clearTimeout(timer); resolve(); }
+        // iOS Safari では scrollend が来ない場合があるのでタイムアウト補助
+        timer=setTimeout(finish, 350);
+        const onEnd=()=>{ window.removeEventListener('scrollend', onEnd); finish(); };
+        window.addEventListener('scrollend', onEnd, { once:true });
+        el.scrollIntoView({block:'center', behavior:'smooth'});
+        // rAF ダブルでフォールバック（アニメ前計測を避ける）
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{}));
+      });
     }
+
+    function rectInVisualViewport(el){
+      const r = el.getBoundingClientRect(); // これは通常「可視ビューポート」基準
+      // ただしピンチズーム・URLバーでのずれに備え、offset を加味（固定配置の座標系と一致させる）
+      const x = Math.round(r.left + vvOffsetX());
+      const y = Math.round(r.top  + vvOffsetY());
+      const w = Math.round(Math.min(r.width,  vvWidth() - 16)); // 多少のはみ出し防止
+      const h = Math.round(Math.min(r.height, vvHeight() - 16));
+      const pad = 8;
+      return {
+        x: Math.max(8 + vvOffsetX(), x - pad),
+        y: Math.max(8 + vvOffsetY(), y - pad),
+        w: Math.max(24, w + pad*2),
+        h: Math.max(24, h + pad*2)
+      };
+    }
+
     function placeFocus(){
       const step = steps[tourIndex]; const target = qs(step.sel);
       if(!target){ console.warn('Step target not found:', step.sel); return; }
 
-      // ★ 対象を前面に持ち上げ（前回の対象は解除）
+      // 持ち上げ管理
       if(elevatedEl && elevatedEl !== target){
         elevatedEl.classList.remove('mk-tour-elevate');
       }
       target.classList.add('mk-tour-elevate');
       elevatedEl = target;
 
-      target.scrollIntoView({block:'center', behavior:'smooth'});
-      const r = rectOf(target);
-      focusEl.style.left = r.x+'px';
-      focusEl.style.top  = r.y+'px';
-      focusEl.style.width  = r.w+'px';
-      focusEl.style.height = r.h+'px';
+      const r = rectInVisualViewport(target);
+      focusEl.style.left = r.x + 'px';
+      focusEl.style.top  = r.y + 'px';
+      focusEl.style.width  = r.w + 'px';
+      focusEl.style.height = r.h + 'px';
 
-      // パネルの配置
-      const panelW = Math.min(560, window.innerWidth*0.92);
+      // パネル位置：可視ビューポート内に収める
+      const panelW = Math.min(560, vvWidth()*0.92);
       const margin = 12;
       const belowY = r.y + r.h + margin;
-      const aboveY = Math.max(8, r.y - margin - 160);
-      let px = Math.min(Math.max(8, r.x), window.innerWidth - panelW - 8);
-      let py = (belowY + 180 < window.innerHeight) ? belowY : aboveY;
-      panelEl.style.left = px+'px';
-      panelEl.style.top  = py+'px';
+      const aboveY = Math.max(8 + vvOffsetY(), r.y - margin - 170);
+      let px = Math.min(Math.max(8 + vvOffsetX(), r.x), vvOffsetX() + vvWidth() - panelW - 8);
+      let py = (belowY + 190 < vvOffsetY() + vvHeight()) ? belowY : aboveY;
+
+      panelEl.style.left = px + 'px';
+      panelEl.style.top  = py + 'px';
+      panelEl.style.maxWidth = panelW + 'px';
 
       // 内容
       stepEl.textContent = `STEP ${tourIndex+1} / ${steps.length}`;
@@ -777,9 +812,11 @@ footer.mk-mini a{
 
       // イベント
       skipBtn.addEventListener('click', endTour);
-      prevBtn.addEventListener('click', ()=>{ if(tourIndex>0){ tourIndex--; placeFocus(); }});
-      nextBtn.addEventListener('click', ()=>{
-        if(tourIndex < steps.length-1){ tourIndex++; placeFocus(); }
+      prevBtn.addEventListener('click', async ()=>{
+        if(tourIndex>0){ tourIndex--; await stableScrollIntoView(qs(steps[tourIndex].sel)); placeFocus(); }
+      });
+      nextBtn.addEventListener('click', async ()=>{
+        if(tourIndex < steps.length-1){ tourIndex++; await stableScrollIntoView(qs(steps[tourIndex].sel)); placeFocus(); }
         else { endTour(); }
       });
 
@@ -791,16 +828,29 @@ footer.mk-mini a{
         else if(e.key==='ArrowLeft'){ prevBtn.click(); }
       }
       document.addEventListener('keydown', onKey);
+
+      // 背景クリックで次へ
       maskEl.addEventListener('click', ()=> nextBtn.click());
-      window.addEventListener('resize', ()=> placeFocus());
+
+      // 画面変動に追従（スマホURLバー/ピンチズーム/キーボード展開）
+      const v = vv();
+      if(v){
+        v.addEventListener('resize', ()=> placeFocus());
+        v.addEventListener('scroll', ()=> placeFocus());
+      }
+      window.addEventListener('resize', ()=> placeFocus(), { passive:true });
+      window.addEventListener('scroll', ()=> placeFocus(), { passive:true });
+      window.addEventListener('orientationchange', ()=> setTimeout(placeFocus, 100));
     }
 
-    function startTour(idx=0){
+    async function startTour(idx=0){
       gtag('event','tutorial_start',{step:idx+1});
       ensureEls(); tourIndex = idx;
       maskEl.style.display='block'; focusEl.style.display='block'; panelEl.style.display='block';
       document.body.style.overflow='hidden';
-      placeFocus();
+      await stableScrollIntoView(qs(steps[tourIndex].sel));
+      // rAFで描画を待ってから配置（スマホでのずれ軽減）
+      requestAnimationFrame(()=>{ requestAnimationFrame(placeFocus); });
       nextBtn.focus();
     }
     function endTour(){
@@ -809,7 +859,6 @@ footer.mk-mini a{
       if(focusEl){ focusEl.style.display='none'; }
       if(panelEl){ panelEl.style.display='none'; }
       document.body.style.overflow='';
-      // ★ 解除：持ち上げクラス
       if(elevatedEl){
         elevatedEl.classList.remove('mk-tour-elevate');
         elevatedEl = null;
