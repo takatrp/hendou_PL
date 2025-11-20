@@ -1,10 +1,6 @@
 <!DOCTYPE html>
-<!-- internal version: r77
-  - モバイル（スマホ）でのチュートリアル位置ずれを修正
-    * visualViewport の offset/resize/scroll に追従
-    * scrollIntoView 後の計測を rAF + scrollend で安定化
-    * パネル/フォーカスの座標を常に「可視ビューポート」基準に補正
-  - 既存機能（入力安定化、permille丸め、解説ボタン、ミニフッター、gtag、STEPは7つ）を維持
+<!-- internal version: r78
+  - 左上の説明文を改行区切りに変更
 -->
 <html lang="ja">
 <head>
@@ -45,7 +41,7 @@ h1{font-size:18px;margin:0}
 .btn:hover{border-color:#94a3b8}
 .btn:active{transform:translateY(1px)}
 
-.note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px}
+.note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px;line-height:1.5}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 button{appearance:none;border:0;border-radius:12px;padding:8px 12px;font-weight:700;cursor:pointer}
@@ -146,8 +142,11 @@ footer.mk-mini a{
         </div>
 
         <div class="note-top">
-          ・固定費：越えるべきハードルの高さ／・売上高：ボールを落とす高さ／・限界利益：バウンドした頂点／・限界利益率：バウンドする割合<br>
-          バウンド頂点（限界利益）がハードル（固定費）を超えれば黒字です。
+          ・固定費：越えるべきハードルの高さ<br>
+          ・売上高：ボールを落とす高さ<br>
+          ・限界利益：バウンドした頂点<br>
+          ・限界利益率：バウンドする割合<br>
+          ※バウンド頂点（限界利益）がハードル（固定費）を超えれば黒字です。
         </div>
         <canvas id="cv" width="860" height="420" aria-label="学習キャンバス"></canvas>
         <div class="btns">
@@ -214,7 +213,7 @@ footer.mk-mini a{
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r77</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r78</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -222,7 +221,7 @@ footer.mk-mini a{
 <script>
 'use strict';
 (function(){
-  const VERSION='r77';
+  const VERSION='r78';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -599,8 +598,8 @@ footer.mk-mini a{
             else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
             if(pendingCheck && pendingVals){
               targetShown.textContent = pendingVals.targetText;
-              diffMsgEl.innerHTML     = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
-              statusEl.textContent    = pendingVals.statusText;
+              diffMsgEl.innerHTML      = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
+              statusEl.textContent     = pendingVals.statusText;
               checkResult.style.display='block';
               metrics.style.display='grid';
               showTargetLine = isFinite(pendingVals.targetNum);
