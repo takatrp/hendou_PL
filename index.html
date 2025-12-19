@@ -878,5 +878,70 @@ footer.mk-mini a{
   });
 })();
 </script>
+<style>
+:root{ --mk-brand:#578899; --mk-line:#e2e8f0; --mk-ink:#0f172a; --mk-muted:#64748b; }
+.mk-nav{position:fixed; left:0; right:0; bottom:0; z-index:999; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.92); border-top:1px solid var(--mk-line); backdrop-filter:saturate(180%) blur(10px);}
+.mk-nav .inner{max-width:1100px; margin:0 auto; display:flex; gap:10px; align-items:center; justify-content:space-between;}
+.mk-nav .left{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.mk-nav .hint{font-size:11px; color:var(--mk-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.mk-nav .btns{display:flex; gap:8px; flex:0 0 auto;}
+.mk-nav a{display:inline-flex; align-items:center; justify-content:center; height:36px; padding:0 12px; border-radius:12px; border:1px solid var(--mk-line); text-decoration:none; font-weight:800; color:var(--mk-ink); background:#fff;}
+.mk-nav a.primary{border-color:transparent; background:linear-gradient(135deg, var(--mk-brand) 0%, #7aa5b4 100%); color:#fff;}
+@media (max-width:420px){
+.mk-nav .hint{display:none;}
+.mk-nav a{height:34px; padding:0 10px; font-size:12px;}
+}
+body{ padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+</style>
+
+
+<div class="mk-nav" id="mk-nav" hidden>
+<div class="inner">
+<div class="left">
+<div style="font-weight:900;">松本会計ツール</div>
+<div class="hint" id="mk-hint">ポータルへ戻る／次のおすすめへ</div>
+</div>
+<div class="btns">
+<a href="https://takatrp.github.io/tool-portal/" id="mk-back">← ポータル</a>
+<a href="#" id="mk-next" class="primary" hidden>次へ →</a>
+</div>
+</div>
+</div>
+
+
+<script>
+(function(){
+const params = new URLSearchParams(location.search);
+const portal = params.get('portal') || (function(){ try{return localStorage.getItem('mk_portal_url');}catch(e){return null;} })() || 'https://takatrp.github.io/tool-portal/';
+const next = params.get('next');
+
+
+const nav = document.getElementById('mk-nav');
+const back = document.getElementById('mk-back');
+const nextBtn = document.getElementById('mk-next');
+
+
+if(back) back.href = portal;
+
+
+if(next){
+try{
+// nextはURLとして来る想定。安全のため同一ドメイン以外は非表示
+const u = new URL(next);
+if(u.hostname.endsWith('github.io')){
+nextBtn.href = next;
+nextBtn.hidden = false;
+}
+}catch(e){}
+}
+
+
+// 保存（次回の保険）
+try{ localStorage.setItem('mk_portal_url', portal); }catch(e){}
+
+
+if(nav) nav.hidden = false;
+})();
+</script>
 </body>
 </html>
