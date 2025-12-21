@@ -1,7 +1,11 @@
 <!DOCTYPE html>
-<!-- internal version: r80
-  - チュートリアル③を「売上↑ / 限界利益率↑ / 固定費↓」の3ミニミッション化
-  - 各ミッションは「正しい方向に動かす + 黒字判定」を満たすまで次へ不可
+<!-- internal version: r81
+  - チュートリアル中の「押せない／ぼやける」を解消（複数要素elevate）
+  - ③を3つのミニミッション化（S↑ / CMR↑ / FC↓）
+  - ①で「解説」ボタンが押せるように
+  - ②でグラフがぼやけないように（cardGraphをelevate）
+  - ③で「黒字かどうか確認」ボタンが押せるように（#playをelevate）
+  - ④で「答え合わせ」ボタンが押せるように（#checkBtnをelevate）
 -->
 <html lang="ja">
 <head>
@@ -96,16 +100,16 @@ footer.mk-mini a{
 .mk-tour-mask{
   position:fixed;inset:0;background:rgba(15,23,42,.56);
   backdrop-filter:saturate(120%) blur(2px);
-  z-index:9998; /* 背景ぼかし層（対象より下） */
+  z-index:9998;
 }
 .mk-tour-focus{
   position:fixed;border-radius:12px;
   box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);
-  z-index:10001; /* 枠は対象より上、パネルより下 */
+  z-index:10001;
   pointer-events:none;transition:transform .2s ease, width .2s ease, height .2s ease, left .2s ease, top .2s ease;
 }
 .mk-tour-panel{
-  position:fixed;z-index:10002; /* 最前面にパネル */
+  position:fixed;z-index:10002;
   max-width:min(560px, 92vw);background:#fff;border:1px solid var(--line);border-radius:16px;
   box-shadow:0 14px 36px rgba(0,0,0,.22);padding:12px
 }
@@ -118,10 +122,10 @@ footer.mk-mini a{
 .mk-tour-actions .tbtn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .mk-tour-actions .tbtn:disabled{opacity:.55;cursor:not-allowed}
 
-/* 対象要素を持ち上げ、ブラー前面でクッキリ表示 */
+/* 対象要素を持ち上げ、マスクより前面でクッキリ表示＆クリック可能にする */
 .mk-tour-elevate{
   position:relative !important;
-  z-index:10000 !important; /* mask(9998) より上、focus(10001)/panel(10002)より下 */
+  z-index:10000 !important; /* mask(9998)より上、focus(10001)/panel(10002)より下 */
   isolation:isolate;
 }
 </style>
@@ -142,7 +146,7 @@ footer.mk-mini a{
           </div>
         </div>
 
-        <div class="note-top" id="noteTop">
+        <div class="note-top">
           ・固定費：越えるべきハードルの高さ<br>
           ・売上高：ボールを落とす高さ<br>
           ・限界利益：バウンドした頂点<br>
@@ -214,7 +218,7 @@ footer.mk-mini a{
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r80</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r81</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -222,7 +226,7 @@ footer.mk-mini a{
 <script>
 'use strict';
 (function(){
-  const VERSION='r80';
+  const VERSION='r81';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -663,7 +667,7 @@ footer.mk-mini a{
       revealedByPlay=false; apexMarkerY=null; resultEl.textContent='';
       clearCheckVisuals(); redrawOnly();
     });
-    $('play').addEventListener('click', ()=>playOnce());
+    $('play').addEventListener('click', ()=>{ tourPlayCount++; playOnce(); });
     $('reset').addEventListener('click', resetAll);
     $('reset2').addEventListener('click', resetAll);
     $('checkBtn').addEventListener('click', ()=>doCheckAnswer());
@@ -700,162 +704,133 @@ footer.mk-mini a{
 
     /* ===================== チュートリアル（ミニミッション対応） ===================== */
     const TOUR_KEY='mkvpl_tour_dismissed_v3';
-
-    // --- チュートリアル進行のための状態 ---
     let tourIndex = 0;
-    let maskEl, focusEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl;
-    let elevatedEl = null;
 
-    // 「操作したか」「判定を押したか」を検知
-    let tourPlayCount = 0;
-    let tourChangedSinceStep = false;
-    let tourCheckDone = false;
-    let tourBaseline = null;
+    // チュートリアル進行の判定用フラグ（ミニミッションで使う）
+    let baseVals = null;
+    window.tourPlayCount = 0;
+    window.tourCheckDone = false;
 
-    const playBtn = document.getElementById('play');
-    if(playBtn){
-      playBtn.addEventListener('click', ()=>{ tourPlayCount++; }, { passive:true });
+    function snapshotBase(){
+      const mt = calc();
+      baseVals = { sales: mt.sales, cmr: mt.cmrPct, fixed: mt.fixed };
     }
-    const checkBtn2 = document.getElementById('checkBtn');
-    if(checkBtn2){
-      checkBtn2.addEventListener('click', ()=>{ tourCheckDone = true; }, { passive:true });
-    }
-    ['sales','cmr','fixed','salesRange','cmrRange','fixedRange'].forEach(id=>{
-      const el = document.getElementById(id);
-      if(el){
-        el.addEventListener('input', ()=>{ tourChangedSinceStep = true; }, { passive:true });
-      }
-    });
-
     function stepResetFlags(){
-      tourPlayCount = 0;
-      tourChangedSinceStep = false;
-      tourCheckDone = false;
-      tourBaseline = calc();
+      window.tourPlayCount = 0;
+      window.tourCheckDone = false;
+      snapshotBase();
     }
-
-    // ミニミッションの方向条件（閾値を少し設けて誤操作を防止）
-    const MIN_DELTA_SALES  = 1000; // 1,000円以上
-    const MIN_DELTA_FIXED  = 1000; // 1,000円以上
-    const MIN_DELTA_CMR_PM = 1;    // 0.1% = permille 1
-
     function isSalesIncreased(){
       const mt = calc();
-      if(!tourBaseline) return false;
-      return mt.sales >= (tourBaseline.sales + MIN_DELTA_SALES);
+      return baseVals && mt.sales > baseVals.sales;
     }
     function isCMRIncreased(){
       const mt = calc();
-      if(!tourBaseline) return false;
-      return mt.cmrPermille >= (tourBaseline.cmrPermille + MIN_DELTA_CMR_PM);
+      return baseVals && mt.cmrPct > baseVals.cmr;
     }
     function isFixedDecreased(){
       const mt = calc();
-      if(!tourBaseline) return false;
-      return mt.fixed <= (tourBaseline.fixed - MIN_DELTA_FIXED);
+      return baseVals && mt.fixed < baseVals.fixed;
     }
 
-    // ①〜④のストーリーに沿ったステップ（③を3ミニミッション化）
+    // 「答え合わせ」完了扱い：結果が表示されたらOK（doCheckAnswer→playOnceでcheckResult表示）
+    const _origDoCheck = doCheckAnswer;
+    function doCheckAnswerWrapped(){
+      _origDoCheck();
+      window.tourCheckDone = true;
+    }
+    $('checkBtn').removeEventListener('click', ()=>doCheckAnswer());
+    $('checkBtn').addEventListener('click', doCheckAnswerWrapped);
+
     const steps = [
-      // ① 概要
       {
-        sel: '#noteTop',
-        title:'① 概要（見立て）',
+        sel: '.title-row',
+        title:'① 概要（まずは解説を確認）',
         body:
-          '固定費＝ハードル、売上高＝落とす高さ、限界利益＝跳ねた頂点、限界利益率＝跳ね返る割合。' +
-          '<br>右上の「解説」ボタンで概念図（変動PL.png）も確認できます。',
+          'このツールで「変動損益計算書（CVP）」の構造を、ボールの動きで直感的に学べます。' +
+          '<br>右上の<b>「解説」</b>を押して、概念図を確認してください。',
+        extraElevate: ['#openExplain'], // 解説ボタンを押せるように持ち上げ
         onEnter(){
-          // 通常モードへ
-          try{ if(document.getElementById('challengeToggle').checked){ document.getElementById('challengeToggle').click(); } }catch(_){}
+          try{
+            // 念のため通常モードに戻して開始
+            if($('challengeToggle').checked){ $('challengeToggle').click(); }
+          }catch(_){}
         },
         canNext(){ return true; }
       },
-
-      // ② そのまま→赤字確認（操作必須）
       {
-        sel: '#play',
-        title:'② まずはそのまま→赤字確認',
+        sel: '#cardGraph',
+        title:'② まずはそのまま→赤字を確認',
         body:
-          'まずは初期値のまま「黒字かどうか確認」を押してください。' +
-          '<br><b>赤字になること</b>を確認するのがこのSTEPの目的です。',
-        onEnter(){
-          try{ resetAll(); }catch(_){}
-          stepResetFlags();
-        },
-        canNext(){
-          return tourPlayCount >= 1;
-        }
+          '初期値のまま<b>「黒字かどうか確認」</b>を押してください。<br>' +
+          'まず「赤字になる」ことを確認するのがこのSTEPです。',
+        extraElevate: ['#cardGraph', '#play'], // グラフもボタンも押せる＆ぼやけない
+        onEnter(){ resetAll(); stepResetFlags(); },
+        canNext(){ return (window.tourPlayCount >= 1); }
       },
-
-      // ③-1 ミニミッション：売上↑
       {
         sel: '#paramSales',
         title:'③-1 ミニミッション：売上を上げる（S↑）',
         body:
-          '黒字化の1つ目は「売上を上げる」です。<br>' +
-          '売上高（S）のスライダーを<b>右に動かして増やし</b>、次に「黒字かどうか確認」を押してください。<br>' +
+          '黒字化の手段①は<b>「売上を上げる」</b>です。<br>' +
+          '売上高（S）のスライダーを<b>右に動かして増やし</b>、次に<b>「黒字かどうか確認」</b>を押してください。<br>' +
           '（右＝増、左＝減）',
-        onEnter(){
-          try{ resetAll(); }catch(_){}
-          stepResetFlags();
-        },
-        canNext(){
-          return isSalesIncreased() && (tourPlayCount >= 1);
-        }
+        extraElevate: ['#cardGraph', '#play'],
+        onEnter(){ resetAll(); stepResetFlags(); },
+        canNext(){ return isSalesIncreased() && (window.tourPlayCount >= 1); }
       },
-
-      // ③-2 ミニミッション：限界利益率↑
       {
         sel: '#paramCMR',
         title:'③-2 ミニミッション：限界利益率を上げる（CMR↑）',
         body:
-          '黒字化の2つ目は「限界利益率を上げる」です。<br>' +
-          '限界利益率（CMR, %）のスライダーを<b>右に動かして上げ</b>、次に「黒字かどうか確認」を押してください。<br>' +
+          '黒字化の手段②は<b>「限界利益率を上げる」</b>です。<br>' +
+          '限界利益率（CMR, %）のスライダーを<b>右に動かして上げ</b>、次に<b>「黒字かどうか確認」</b>を押してください。<br>' +
           '（右＝高、左＝低）',
-        onEnter(){
-          try{ resetAll(); }catch(_){}
-          stepResetFlags();
-        },
-        canNext(){
-          return isCMRIncreased() && (tourPlayCount >= 1);
-        }
+        extraElevate: ['#cardGraph', '#play'],
+        onEnter(){ resetAll(); stepResetFlags(); },
+        canNext(){ return isCMRIncreased() && (window.tourPlayCount >= 1); }
       },
-
-      // ③-3 ミニミッション：固定費↓
       {
         sel: '#paramFixed',
         title:'③-3 ミニミッション：固定費を下げる（FC↓）',
         body:
-          '黒字化の3つ目は「固定費を下げる」です。<br>' +
-          '固定費（FC）のスライダーを<b>左に動かして下げ</b>、次に「黒字かどうか確認」を押してください。<br>' +
+          '黒字化の手段③は<b>「固定費を下げる」</b>です。<br>' +
+          '固定費（FC）のスライダーを<b>左に動かして下げ</b>、次に<b>「黒字かどうか確認」</b>を押してください。<br>' +
           '（右＝増、左＝減）',
-        onEnter(){
-          try{ resetAll(); }catch(_){}
-          stepResetFlags();
-        },
-        canNext(){
-          return isFixedDecreased() && (tourPlayCount >= 1);
-        }
+        extraElevate: ['#cardGraph', '#play'],
+        onEnter(){ resetAll(); stepResetFlags(); },
+        canNext(){ return isFixedDecreased() && (window.tourPlayCount >= 1); }
       },
-
-      // ④ チャレンジモード（逆算）
       {
         sel: '#challengeBox',
         title:'④ チャレンジ：固定費→限界利益率→売上で逆算',
         body:
           '「必要売上高を考えてみましょう」にチェックを入れ、<br>' +
-          '①固定費 → ②限界利益率 → ③売上 の順に入力して、最後に「答え合わせ」を押してください。',
+          '①固定費 → ②限界利益率 → ③売上 の順に入力して、最後に<b>「答え合わせ」</b>を押してください。',
+        extraElevate: ['#cardGraph', '#checkBtn'],
         onEnter(){
-          tourCheckDone = false;
-          const t = document.getElementById('challengeToggle');
+          window.tourCheckDone = false;
+          const t = $('challengeToggle');
           if(t && !t.checked) t.click();
           stepResetFlags();
         },
-        canNext(){
-          return tourCheckDone === true;
-        }
+        canNext(){ return window.tourCheckDone === true; }
       },
+      {
+        sel: '#cardGraph',
+        title:'完了',
+        body:
+          'お疲れさまでした。<br>' +
+          '黒字化は「売上↑／限界利益率↑／固定費↓」の3つしかないことを、操作で体感できたはずです。<br>' +
+          '最後に自由に触って、動きと数値の関係を確認してみてください。',
+        extraElevate: ['#cardGraph'],
+        onEnter(){},
+        canNext(){ return true; }
+      }
     ];
+
+    let maskEl, focusEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl;
+    let elevatedEls = new Set();
 
     function qs(sel){ return document.querySelector(sel); }
     function vv(){ return window.visualViewport || null; }
@@ -864,7 +839,6 @@ footer.mk-mini a{
     function vvWidth(){ const v=vv(); return v ? v.width : window.innerWidth; }
     function vvHeight(){ const v=vv(); return v ? v.height: window.innerHeight; }
 
-    // 安定スクロール
     function stableScrollIntoView(el){
       return new Promise(resolve=>{
         let done=false, timer=null;
@@ -896,12 +870,21 @@ footer.mk-mini a{
       const step = steps[tourIndex]; const target = qs(step.sel);
       if(!target){ console.warn('Step target not found:', step.sel); return; }
 
-      // 持ち上げ管理
-      if(elevatedEl && elevatedEl !== target){
-        elevatedEl.classList.remove('mk-tour-elevate');
-      }
+      // ---- elevate（複数要素対応） ----
+      elevatedEls.forEach(el=>{ try{ el.classList.remove('mk-tour-elevate'); }catch(_){ } });
+      elevatedEls.clear();
+
       target.classList.add('mk-tour-elevate');
-      elevatedEl = target;
+      elevatedEls.add(target);
+
+      const extras = Array.isArray(step.extraElevate) ? step.extraElevate : [];
+      extras.forEach(sel=>{
+        const ex = qs(sel);
+        if(ex){
+          ex.classList.add('mk-tour-elevate');
+          elevatedEls.add(ex);
+        }
+      });
 
       const r = rectInVisualViewport(target);
       focusEl.style.left = r.x + 'px';
@@ -909,7 +892,6 @@ footer.mk-mini a{
       focusEl.style.width  = r.w + 'px';
       focusEl.style.height = r.h + 'px';
 
-      // パネル位置
       const panelW = Math.min(560, vvWidth()*0.92);
       const margin = 12;
       const belowY = r.y + r.h + margin;
@@ -921,18 +903,22 @@ footer.mk-mini a{
       panelEl.style.top  = py + 'px';
       panelEl.style.maxWidth = panelW + 'px';
 
-      // 内容
       stepEl.textContent = `STEP ${tourIndex+1} / ${steps.length}`;
       titleEl.textContent = step.title;
       bodyEl.innerHTML = step.body;
 
-      // ボタン表示
       prevBtn.disabled = (tourIndex===0);
-      nextBtn.textContent = (tourIndex===steps.length-1) ? '完了' : '次へ';
 
-      // 次へ制御（条件が満たされるまで無効）
-      const ok = (typeof step.canNext === 'function') ? step.canNext() : true;
-      nextBtn.disabled = !ok;
+      const isLast = (tourIndex===steps.length-1);
+      nextBtn.textContent = isLast ? '完了' : '次へ';
+
+      // 次へ押下可否（ミニミッションの条件を満たすまで無効化）
+      if(typeof step.canNext === 'function' && !isLast){
+        const ok = !!step.canNext();
+        nextBtn.disabled = !ok;
+      }else{
+        nextBtn.disabled = false;
+      }
     }
 
     function ensureEls(){
@@ -954,23 +940,30 @@ footer.mk-mini a{
       panelEl.append(head, bodyEl, actions);
       document.body.append(maskEl, focusEl, panelEl);
 
-      // イベント
       skipBtn.addEventListener('click', endTour);
 
       prevBtn.addEventListener('click', async ()=>{
         if(tourIndex>0){
           tourIndex--;
-          if(steps[tourIndex].onEnter) steps[tourIndex].onEnter();
-          await stableScrollIntoView(qs(steps[tourIndex].sel));
+          const step = steps[tourIndex];
+          if(typeof step.onEnter==='function'){ try{ step.onEnter(); }catch(_){ } }
+          await stableScrollIntoView(qs(step.sel));
           placeFocus();
         }
       });
 
       nextBtn.addEventListener('click', async ()=>{
+        const step = steps[tourIndex];
         if(tourIndex < steps.length-1){
+          // 条件未達なら遷移しない
+          if(typeof step.canNext==='function' && !step.canNext()){
+            placeFocus();
+            return;
+          }
           tourIndex++;
-          if(steps[tourIndex].onEnter) steps[tourIndex].onEnter();
-          await stableScrollIntoView(qs(steps[tourIndex].sel));
+          const nextStep = steps[tourIndex];
+          if(typeof nextStep.onEnter==='function'){ try{ nextStep.onEnter(); }catch(_){ } }
+          await stableScrollIntoView(qs(nextStep.sel));
           placeFocus();
         }else{
           endTour();
@@ -986,7 +979,7 @@ footer.mk-mini a{
       }
       document.addEventListener('keydown', onKey);
 
-      // 背景クリックで次へ（条件未達なら進まない）
+      // 背景クリックで次へ（ただしdisabled時は動かさない）
       maskEl.addEventListener('click', ()=>{ if(!nextBtn.disabled) nextBtn.click(); });
 
       // 画面変動に追従
@@ -999,25 +992,32 @@ footer.mk-mini a{
       window.addEventListener('scroll', ()=> placeFocus(), { passive:true });
       window.addEventListener('orientationchange', ()=> setTimeout(placeFocus, 100));
 
-      // 条件更新（最小改修で確実に）
-      setInterval(()=>{
-        if(panelEl && panelEl.style.display !== 'none'){
-          const step = steps[tourIndex];
-          const ok = (typeof step.canNext === 'function') ? step.canNext() : true;
-          if(nextBtn) nextBtn.disabled = !ok;
-        }
-      }, 120);
+      // 入力・操作で canNext を再評価（スライダー動かした／再生押した等）
+      ['input','change','click','keyup','touchend'].forEach(ev=>{
+        document.addEventListener(ev, ()=>{
+          if(panelEl && panelEl.style.display==='block'){
+            // 次へボタンの有効/無効を更新
+            const st = steps[tourIndex];
+            const isLast = (tourIndex===steps.length-1);
+            if(typeof st.canNext==='function' && !isLast){
+              const ok = !!st.canNext();
+              nextBtn.disabled = !ok;
+            }
+          }
+        }, { passive:true });
+      });
     }
 
     async function startTour(idx=0){
       try{ gtag('event','tutorial_start',{step:idx+1}); }catch(_){}
       ensureEls(); tourIndex = idx;
-
-      if(steps[tourIndex].onEnter) steps[tourIndex].onEnter();
-
       maskEl.style.display='block'; focusEl.style.display='block'; panelEl.style.display='block';
       document.body.style.overflow='hidden';
-      await stableScrollIntoView(qs(steps[tourIndex].sel));
+
+      const step = steps[tourIndex];
+      if(typeof step.onEnter==='function'){ try{ step.onEnter(); }catch(_){ } }
+
+      await stableScrollIntoView(qs(step.sel));
       requestAnimationFrame(()=>{ requestAnimationFrame(placeFocus); });
       nextBtn.focus();
     }
@@ -1028,10 +1028,10 @@ footer.mk-mini a{
       if(focusEl){ focusEl.style.display='none'; }
       if(panelEl){ panelEl.style.display='none'; }
       document.body.style.overflow='';
-      if(elevatedEl){
-        elevatedEl.classList.remove('mk-tour-elevate');
-        elevatedEl = null;
-      }
+
+      elevatedEls.forEach(el=>{ try{ el.classList.remove('mk-tour-elevate'); }catch(_){ } });
+      elevatedEls.clear();
+
       try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){}
     }
 
@@ -1039,7 +1039,7 @@ footer.mk-mini a{
     const tourBtn = document.getElementById('startTour');
     if(tourBtn){ tourBtn.addEventListener('click', ()=> startTour(0)); }
 
-    // 初回ヒント
+    // 初回のみヒント
     try{
       if(!localStorage.getItem(TOUR_KEY)){
         tourBtn.title = '初めての方はここからチュートリアルを開始できます';
@@ -1063,46 +1063,49 @@ footer.mk-mini a{
 .mk-nav a{height:34px; padding:0 10px; font-size:12px;}
 }
 body{ padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+
+/* チェック結果の下線表示（既存clsがあっても問題ないよう最低限定義） */
+.diff-uline-red{ text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: #b91c1c; }
+.diff-uline-blue{ text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: #0ea5e9; }
 </style>
 
 <div class="mk-nav" id="mk-nav" hidden>
-  <div class="inner">
-    <div class="left">
-      <div style="font-weight:900;">松本会計ツール</div>
-      <div class="hint" id="mk-hint">ポータルへ戻る／次のおすすめへ</div>
-    </div>
-    <div class="btns">
-      <a href="https://takatrp.github.io/tool-portal/" id="mk-back">← ポータル</a>
-      <a href="#" id="mk-next" class="primary" hidden>次へ →</a>
-    </div>
-  </div>
+<div class="inner">
+<div class="left">
+<div style="font-weight:900;">松本会計ツール</div>
+<div class="hint" id="mk-hint">ポータルへ戻る／次のおすすめへ</div>
+</div>
+<div class="btns">
+<a href="https://takatrp.github.io/tool-portal/" id="mk-back">← ポータル</a>
+<a href="#" id="mk-next" class="primary" hidden>次へ →</a>
+</div>
+</div>
 </div>
 
 <script>
 (function(){
-  const params = new URLSearchParams(location.search);
-  const portal = params.get('portal') || (function(){ try{return localStorage.getItem('mk_portal_url');}catch(e){return null;} })() || 'https://takatrp.github.io/tool-portal/';
-  const next = params.get('next');
+const params = new URLSearchParams(location.search);
+const portal = params.get('portal') || (function(){ try{return localStorage.getItem('mk_portal_url');}catch(e){return null;} })() || 'https://takatrp.github.io/tool-portal/';
+const next = params.get('next');
 
-  const nav = document.getElementById('mk-nav');
-  const back = document.getElementById('mk-back');
-  const nextBtn = document.getElementById('mk-next');
+const nav = document.getElementById('mk-nav');
+const back = document.getElementById('mk-back');
+const nextBtn = document.getElementById('mk-next');
 
-  if(back) back.href = portal;
+if(back) back.href = portal;
 
-  if(next){
-    try{
-      const u = new URL(next);
-      if(u.hostname.endsWith('github.io')){
-        nextBtn.href = next;
-        nextBtn.hidden = false;
-      }
-    }catch(e){}
-  }
+if(next){
+  try{
+    const u = new URL(next);
+    if(u.hostname.endsWith('github.io')){
+      nextBtn.href = next;
+      nextBtn.hidden = false;
+    }
+  }catch(e){}
+}
 
-  try{ localStorage.setItem('mk_portal_url', portal); }catch(e){}
-
-  if(nav) nav.hidden = false;
+try{ localStorage.setItem('mk_portal_url', portal); }catch(e){}
+if(nav) nav.hidden = false;
 })();
 </script>
 <script src="https://takatrp.github.io/tool-portal/mk-nav.js" defer></script>
