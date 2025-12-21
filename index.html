@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- internal version: r82
-  - チュートリアル中もスクロール可能（overflowロック撤廃＋マスクpointer-events無効化）
-  - ②の「グラフがぼやける」対策：②はグラフ領域（#cardGraph）を前面化
-  - ③を3つのミニミッション化（売上↑／限界利益率↑／固定費↓）＋判定ゲート
-  - ④（チャレンジ）でスライダー操作できない問題を解消（extraElevate＋マスク非介入）
-  - チュートリアル中の「背景タップで次へ」を廃止（マスクが操作を奪わない設計へ）
+<!-- internal version: r83
+  - チュートリアルの白いフォーカス枠（mk-tour-focus）を削除（表示ずれ対策）
+  - 強調は対象要素自体を outline + shadow で行う（mk-tour-elevate）
+  - ②/③-1/③-2/③-3 はパネルを画面下にドックしてグラフを隠さない
+  - チュートリアル中もスクロール可能（pointer-events none + overflowロック無し）
 -->
 <html lang="ja">
 <head>
@@ -79,23 +78,19 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
   input[type="text"],input[type="number"]{width:86px;padding:7px}
 }
 
-/* ===== チュートリアル（オーバーレイ/ハイライト/パネル） ===== */
+/* ===== チュートリアル（オーバーレイ/パネル） ===== */
 .mk-tour-mask{
   position:fixed;inset:0;background:rgba(15,23,42,.56);
   backdrop-filter:saturate(120%) blur(2px);
   z-index:9998;
-  pointer-events:none; /* r82: スクロール/操作を奪わない */
-}
-.mk-tour-focus{
-  position:fixed;border-radius:12px;
-  box-shadow:0 0 0 3px #fff, 0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);
-  z-index:10001;
-  pointer-events:none;
-  transition:transform .2s ease, width .2s ease, height .2s ease, left .2s ease, top .2s ease;
+  pointer-events:none; /* スクロール/操作を奪わない */
 }
 .mk-tour-panel{
   position:fixed;z-index:10002;
-  max-width:min(560px, 92vw);background:#fff;border:1px solid var(--line);border-radius:16px;
+  max-width:min(560px, 92vw);
+  max-height:min(70vh, 520px);
+  overflow:auto;
+  background:#fff;border:1px solid var(--line);border-radius:16px;
   box-shadow:0 14px 36px rgba(0,0,0,.22);padding:12px
 }
 .mk-tour-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -108,8 +103,16 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
 .mk-tour-actions .tbtn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .mk-tour-actions .tbtn:disabled{opacity:.55;cursor:not-allowed}
 
-/* 対象要素を持ち上げ */
-.mk-tour-elevate{position:relative !important;z-index:10000 !important;isolation:isolate}
+/* ===== 対象要素の強調（白枠の別要素は使わない） ===== */
+.mk-tour-elevate{
+  position:relative !important;
+  z-index:10000 !important;
+  isolation:isolate;
+  outline:3px solid #fff;
+  outline-offset:2px;
+  box-shadow:0 0 0 6px rgba(87,136,153,.35), 0 10px 30px rgba(0,0,0,.35);
+  border-radius:12px;
+}
 </style>
 </head>
 
@@ -200,7 +203,7 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r82</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r83</span>（<span id="last-updated-date"></span>）
     </footer>
 
   </div>
@@ -209,7 +212,7 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
 <script>
 'use strict';
 (function(){
-  const VERSION='r82';
+  const VERSION='r83';
 
   (function syncFooterMeta(){
     const yEl=document.getElementById('cpy-year');
@@ -574,12 +577,10 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
             else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0,c.fixed-c.cm))} の限界利益が必要`; }
             else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
 
-            // tutorial hook
             if(tourActive){
               window.__mk_tour.playedOnce=true;
               window.__mk_tour.lastProfit=p;
               window.__mk_tour.lastMt=calc();
-              // step-specific clearing is checked in tutorial validate()
               try{ window.dispatchEvent(new CustomEvent('mk_tour_play_done')); }catch(_){}
             }
 
@@ -662,7 +663,6 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
     $('reset').addEventListener('click', resetAll);
     $('reset2').addEventListener('click', resetAll);
 
-    // r82: チュートリアルと干渉しない単一ハンドラ
     function doCheckAnswerWrapped(){
       doCheckAnswer();
       if(tourActive){ window.__mk_tour.missionCleared=true; try{ window.dispatchEvent(new CustomEvent('mk_tour_check_done')); }catch(_){} }
@@ -700,20 +700,8 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       layout();
     })();
 
-    /* ===================== チュートリアル（r82：スクロールOK＋3ミニミッション） ===================== */
-    const TOUR_KEY='mkvpl_tour_dismissed_v3';
-    const tourState={
-      stepPlayed:false,
-      stepCleared:false
-    };
-    function resetTourFlags(){
-      tourState.stepPlayed=false;
-      tourState.stepCleared=false;
-      window.__mk_tour.playedOnce=false;
-      window.__mk_tour.lastProfit=null;
-      window.__mk_tour.lastMt=null;
-      window.__mk_tour.missionCleared=false;
-    }
+    /* ===================== チュートリアル（白枠なし＋パネル位置調整） ===================== */
+    const TOUR_KEY='mkvpl_tour_dismissed_v4';
     function setDefaults(){
       I.sales.value=(DEFAULTS.sales).toLocaleString('ja-JP');
       I.fixed.value=(DEFAULTS.fixed).toLocaleString('ja-JP');
@@ -725,29 +713,30 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       clearCheckVisuals();
       redrawOnly();
     }
+    function resetTourFlags(){
+      window.__mk_tour.playedOnce=false;
+      window.__mk_tour.lastProfit=null;
+      window.__mk_tour.lastMt=null;
+      window.__mk_tour.missionCleared=false;
+    }
 
-    // ステップ定義（ストーリー：①概要→②そのまま赤字→③3ミニミッション→④チャレンジ）
     const steps=[
       {
         sel:'#openExplain',
         title:'① 概要（まずは解説を確認）',
         body:'右上の<b>「解説」</b>ボタンを押すと、概念図（変動PLの見取り図）を別タブで開けます。<br>このチュートリアル中も<b>画面はスクロールできます</b>。',
-        extraElevate:['#titleActions','#openExplain','#startTour','#cardGraph']
+        extraElevate:['#titleActions','#openExplain','#startTour']
       },
       {
         sel:'#cardGraph',
         title:'② まずはそのまま：赤字を確認',
         body:'初期値のまま<b>「黒字かどうか確認」</b>を押して、赤字になることを確認してください。<br>（ここでは数値は触らずにOKです）',
         extraElevate:['#cardGraph','#play'],
-        onEnter(){
-          setDefaults();
-          resetTourFlags();
-        },
+        panelDock:'bottom', /* ← グラフを隠さない */
+        onEnter(){ setDefaults(); resetTourFlags(); },
         validate(){
-          // 初期値のまま1回再生したらOK（「赤字確認」を体験させる）
           const mt=window.__mk_tour.lastMt;
           if(!window.__mk_tour.playedOnce) return {ok:false,msg:'「黒字かどうか確認」を1回押してください。'};
-          // 初期値が多少ズレても良いが、できるだけ初期値で
           if(mt){
             const near=(a,b,eps)=>Math.abs(a-b)<=eps;
             const okNear=near(mt.sales,DEFAULTS.sales,2000) && near(mt.fixed,DEFAULTS.fixed,2000) && near(mt.cmrPct,DEFAULTS.cmr,0.1);
@@ -761,15 +750,13 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
         title:'③-1 ミニミッション：売上を上げて黒字へ',
         body:'他はそのままにして、<b>売上高（S）</b>を<b>上げる</b>方向へ動かし、黒字にしてください。<br>最後に<b>「黒字かどうか確認」</b>を押して、黒字になればクリアです。',
         extraElevate:['#paramSales','#cardGraph','#play'],
-        onEnter(){
-          setDefaults();
-          resetTourFlags();
-        },
+        panelDock:'bottom', /* ← グラフを隠さない（ご要望箇所） */
+        onEnter(){ setDefaults(); resetTourFlags(); },
         validate(){
           if(!window.__mk_tour.playedOnce) return {ok:false,msg:'調整後に「黒字かどうか確認」を押してください。'};
           const mt=window.__mk_tour.lastMt;
           if(!mt) return {ok:false,msg:'再生結果を確認できません。もう一度「黒字かどうか確認」を押してください。'};
-          if(!(mt.sales > DEFAULTS.sales)) return {ok:false,msg:'ミッション③-1は「売上高（S）を上げる」が主役です。売上を増やしてから再生してください。'};
+          if(!(mt.sales > DEFAULTS.sales)) return {ok:false,msg:'③-1は「売上高（S）を上げる」が主役です。売上を増やしてから再生してください。'};
           if(!(mt.profit > 0)) return {ok:false,msg:'まだ黒字になっていません。売上をもう少し上げて再生してください。'};
           return {ok:true};
         }
@@ -779,15 +766,13 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
         title:'③-2 ミニミッション：限界利益率を上げて黒字へ',
         body:'売上と固定費はそのままにして、<b>限界利益率（CMR）</b>を<b>上げる</b>方向へ動かし、黒字にしてください。<br>最後に<b>「黒字かどうか確認」</b>で黒字になればクリアです。',
         extraElevate:['#paramCMR','#cardGraph','#play'],
-        onEnter(){
-          setDefaults();
-          resetTourFlags();
-        },
+        panelDock:'bottom',
+        onEnter(){ setDefaults(); resetTourFlags(); },
         validate(){
           if(!window.__mk_tour.playedOnce) return {ok:false,msg:'調整後に「黒字かどうか確認」を押してください。'};
           const mt=window.__mk_tour.lastMt;
           if(!mt) return {ok:false,msg:'再生結果を確認できません。もう一度「黒字かどうか確認」を押してください。'};
-          if(!(mt.cmrPct > DEFAULTS.cmr)) return {ok:false,msg:'ミッション③-2は「限界利益率（CMR）を上げる」が主役です。CMRを上げてから再生してください。'};
+          if(!(mt.cmrPct > DEFAULTS.cmr)) return {ok:false,msg:'③-2は「限界利益率（CMR）を上げる」が主役です。CMRを上げてから再生してください。'};
           if(!(mt.profit > 0)) return {ok:false,msg:'まだ黒字になっていません。CMRをもう少し上げて再生してください。'};
           return {ok:true};
         }
@@ -797,15 +782,13 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
         title:'③-3 ミニミッション：固定費を下げて黒字へ',
         body:'売上と限界利益率はそのままにして、<b>固定費（FC）</b>を<b>下げる</b>方向へ動かし、黒字にしてください。<br>最後に<b>「黒字かどうか確認」</b>で黒字になればクリアです。',
         extraElevate:['#paramFixed','#cardGraph','#play'],
-        onEnter(){
-          setDefaults();
-          resetTourFlags();
-        },
+        panelDock:'bottom',
+        onEnter(){ setDefaults(); resetTourFlags(); },
         validate(){
           if(!window.__mk_tour.playedOnce) return {ok:false,msg:'調整後に「黒字かどうか確認」を押してください。'};
           const mt=window.__mk_tour.lastMt;
           if(!mt) return {ok:false,msg:'再生結果を確認できません。もう一度「黒字かどうか確認」を押してください。'};
-          if(!(mt.fixed < DEFAULTS.fixed)) return {ok:false,msg:'ミッション③-3は「固定費（FC）を下げる」が主役です。固定費を下げてから再生してください。'};
+          if(!(mt.fixed < DEFAULTS.fixed)) return {ok:false,msg:'③-3は「固定費（FC）を下げる」が主役です。固定費を下げてから再生してください。'};
           if(!(mt.profit > 0)) return {ok:false,msg:'まだ黒字になっていません。固定費をもう少し下げて再生してください。'};
           return {ok:true};
         }
@@ -813,19 +796,15 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       {
         sel:'#cardCtrl',
         title:'④ チャレンジ：固定費→限界利益率→売上で逆算',
-        body:'「必要売上高を考えてみましょう」にチェックを入れ、<br>①固定費 → ②限界利益率 → ③売上 の順に入力し、最後に<b>「答え合わせ」</b>を押してください。<br><span style="font-weight:800">※このステップでは操作が必要です（スクロールもOK）。</span>',
+        body:'「必要売上高を考えてみましょう」にチェックを入れ、<br>①固定費 → ②限界利益率 → ③売上 の順に入力し、最後に<b>「答え合わせ」</b>を押してください。',
         extraElevate:['#cardCtrl','#challengeToggle','#paramFixed','#paramCMR','#paramSales','#checkBtn','#challengeBox','#checkRow'],
         onEnter(){
-          setDefaults();
-          resetTourFlags();
-          // チャレンジをON
+          setDefaults(); resetTourFlags();
           const t=$('challengeToggle');
           if(t && !t.checked) t.click();
-          // 直前結果の装飾を消す
           window.__mk_tour.missionCleared=false;
         },
         validate(){
-          // 「答え合わせ」を押したらOK（チェック結果はUIに出る）
           if(window.__mk_tour.missionCleared===true) return {ok:true};
           return {ok:false,msg:'④は「答え合わせ」を押して進みます。'};
         }
@@ -838,7 +817,7 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
     ];
 
     let tourIndex=0;
-    let maskEl, focusEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl, hintEl;
+    let maskEl, panelEl, prevBtn, nextBtn, skipBtn, titleEl, bodyEl, stepEl, hintEl;
     let elevatedEls=[];
 
     function qs(sel){ return document.querySelector(sel); }
@@ -856,18 +835,7 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
         const onEnd=()=>{ window.removeEventListener('scrollend', onEnd); finish(); };
         window.addEventListener('scrollend', onEnd, { once:true });
         el.scrollIntoView({block:'center', behavior:'smooth'});
-        requestAnimationFrame(()=>requestAnimationFrame(()=>{}));
       });
-    }
-
-    function rectInVisualViewport(el){
-      const r=el.getBoundingClientRect();
-      const x=Math.round(r.left + vvOffsetX());
-      const y=Math.round(r.top  + vvOffsetY());
-      const w=Math.round(Math.min(r.width,  vvWidth() - 16));
-      const h=Math.round(Math.min(r.height, vvHeight() - 16));
-      const pad=8;
-      return { x:Math.max(8+vvOffsetX(), x-pad), y:Math.max(8+vvOffsetY(), y-pad), w:Math.max(24,w+pad*2), h:Math.max(24,h+pad*2) };
     }
 
     function clearElevations(){
@@ -881,47 +849,23 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       (step.extraElevate||[]).forEach(sel=>{
         const el=qs(sel); if(el) list.push(el);
       });
-      // unique
       const uniq=[...new Set(list)];
       uniq.forEach(el=>el.classList.add('mk-tour-elevate'));
       elevatedEls=uniq;
     }
-
     function setHint(msg){
       if(!hintEl) return;
-      if(msg){
-        hintEl.textContent=msg;
-        hintEl.style.display='block';
-      }else{
-        hintEl.textContent='';
-        hintEl.style.display='none';
-      }
+      if(msg){ hintEl.textContent=msg; hintEl.style.display='block'; }
+      else{ hintEl.textContent=''; hintEl.style.display='none'; }
     }
 
-    function placeFocus(){
-      const step=steps[tourIndex];
-      const target=qs(step.sel);
-      if(!target){ console.warn('Step target not found:', step.sel); return; }
-
-      applyElevations(step, target);
-
-      const r=rectInVisualViewport(target);
-      focusEl.style.left=r.x+'px';
-      focusEl.style.top=r.y+'px';
-      focusEl.style.width=r.w+'px';
-      focusEl.style.height=r.h+'px';
-
+    function placePanel(step, target){
       const panelW=Math.min(560, vvWidth()*0.92);
       const margin=12;
-      const belowY=r.y + r.h + margin;
-      const aboveY=Math.max(8+vvOffsetY(), r.y - margin - 190);
-      let px=Math.min(Math.max(8+vvOffsetX(), r.x), vvOffsetX()+vvWidth()-panelW-8);
-      let py=(belowY + 220 < vvOffsetY() + vvHeight()) ? belowY : aboveY;
 
-      panelEl.style.left=px+'px';
-      panelEl.style.top=py+'px';
       panelEl.style.maxWidth=panelW+'px';
 
+      // まずは内容を確定（高さ計測のため）
       stepEl.textContent=`STEP ${tourIndex+1} / ${steps.length}`;
       titleEl.textContent=step.title;
       bodyEl.innerHTML=step.body;
@@ -929,14 +873,42 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
 
       prevBtn.disabled=(tourIndex===0);
       nextBtn.textContent=(tourIndex===steps.length-1) ? '完了' : '次へ';
+
+      // 高さ計測（次フレームで安定）
+      requestAnimationFrame(()=>{
+        const pr=panelEl.getBoundingClientRect();
+        const panelH=pr.height;
+
+        let px = vvOffsetX() + Math.max(8, (vvWidth()-panelW)/2);
+        let py;
+
+        const dock = step.panelDock || 'auto';
+        if(dock==='bottom'){
+          py = vvOffsetY() + vvHeight() - panelH - 12;
+        }else if(dock==='top'){
+          py = vvOffsetY() + 12;
+        }else{
+          // auto：targetの近辺に出す（従来）
+          const r=target.getBoundingClientRect();
+          const ax = r.left + vvOffsetX();
+          const ay = r.top  + vvOffsetY();
+          const aw = r.width, ah=r.height;
+          const belowY=ay + ah + margin;
+          const aboveY=Math.max(8+vvOffsetY(), ay - margin - panelH);
+          py=(belowY + panelH < vvOffsetY() + vvHeight()) ? belowY : aboveY;
+          px=Math.min(Math.max(8+vvOffsetX(), ax), vvOffsetX()+vvWidth()-panelW-8);
+        }
+
+        panelEl.style.left=Math.round(px)+'px';
+        panelEl.style.top=Math.round(py)+'px';
+      });
     }
 
     function ensureEls(){
       if(maskEl) return;
       maskEl=document.createElement('div'); maskEl.className='mk-tour-mask'; maskEl.tabIndex=-1;
-      focusEl=document.createElement('div'); focusEl.className='mk-tour-focus'; focusEl.setAttribute('aria-hidden','true');
-      panelEl=document.createElement('div'); panelEl.className='mk-tour-panel';
 
+      panelEl=document.createElement('div'); panelEl.className='mk-tour-panel';
       const head=document.createElement('div'); head.className='mk-tour-head';
       stepEl=document.createElement('div'); stepEl.className='mk-tour-step';
       titleEl=document.createElement('div'); titleEl.className='mk-tour-title';
@@ -952,56 +924,53 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       actions.append(prevBtn, skipBtn, nextBtn);
 
       panelEl.append(head, bodyEl, hintEl, actions);
-      document.body.append(maskEl, focusEl, panelEl);
+      document.body.append(maskEl, panelEl);
 
       skipBtn.addEventListener('click', endTour);
 
       prevBtn.addEventListener('click', async ()=>{
         if(tourIndex>0){
           tourIndex--;
-          const el=qs(steps[tourIndex].sel);
+          const st=steps[tourIndex];
+          const el=qs(st.sel);
           if(el) await stableScrollIntoView(el);
-          if(typeof steps[tourIndex].onEnter==='function') steps[tourIndex].onEnter();
-          placeFocus();
+          if(typeof st.onEnter==='function') st.onEnter();
+          applyElevations(st, el);
+          placePanel(st, el);
         }
       });
 
       nextBtn.addEventListener('click', async ()=>{
-        const step=steps[tourIndex];
-        if(typeof step.validate==='function'){
-          const res=step.validate();
-          if(!res.ok){
-            setHint(res.msg || '条件を満たしていません。');
-            return;
-          }
+        const st=steps[tourIndex];
+        if(typeof st.validate==='function'){
+          const res=st.validate();
+          if(!res.ok){ setHint(res.msg || '条件を満たしていません。'); return; }
         }
         if(tourIndex < steps.length-1){
           tourIndex++;
-          const el=qs(steps[tourIndex].sel);
+          const st2=steps[tourIndex];
+          const el=qs(st2.sel);
           if(el) await stableScrollIntoView(el);
-          if(typeof steps[tourIndex].onEnter==='function') steps[tourIndex].onEnter();
-          placeFocus();
-        }else{
-          endTour();
-        }
+          if(typeof st2.onEnter==='function') st2.onEnter();
+          applyElevations(st2, el);
+          placePanel(st2, el);
+        }else endTour();
       });
 
-      function onKey(e){
+      document.addEventListener('keydown',(e)=>{
         if(!panelEl || panelEl.style.display==='none') return;
         if(e.key==='Escape') endTour();
         else if(e.key==='ArrowRight') nextBtn.click();
         else if(e.key==='ArrowLeft') prevBtn.click();
-      }
-      document.addEventListener('keydown', onKey);
+      });
 
       const v=vv();
       if(v){
-        v.addEventListener('resize', ()=>placeFocus());
-        v.addEventListener('scroll', ()=>placeFocus());
+        v.addEventListener('resize', ()=>{ const st=steps[tourIndex]; const el=qs(st.sel); if(el) placePanel(st, el); });
+        v.addEventListener('scroll', ()=>{ const st=steps[tourIndex]; const el=qs(st.sel); if(el) placePanel(st, el); });
       }
-      window.addEventListener('resize', ()=>placeFocus(), {passive:true});
-      window.addEventListener('scroll', ()=>placeFocus(), {passive:true});
-      window.addEventListener('orientationchange', ()=>setTimeout(placeFocus,100));
+      window.addEventListener('resize', ()=>{ const st=steps[tourIndex]; const el=qs(st.sel); if(el) placePanel(st, el); }, {passive:true});
+      window.addEventListener('scroll', ()=>{ const st=steps[tourIndex]; const el=qs(st.sel); if(el) placePanel(st, el); }, {passive:true});
     }
 
     async function startTour(idx=0){
@@ -1011,18 +980,16 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       tourIndex=idx;
 
       maskEl.style.display='block';
-      focusEl.style.display='block';
       panelEl.style.display='block';
 
-      // r82: スクロールを止めない（overflowロック無し）
-      // document.body.style.overflow='hidden'; // ←削除
+      const st=steps[tourIndex];
+      if(typeof st.onEnter==='function') st.onEnter();
 
-      if(typeof steps[tourIndex].onEnter==='function') steps[tourIndex].onEnter();
-
-      const el=qs(steps[tourIndex].sel);
+      const el=qs(st.sel);
       if(el) await stableScrollIntoView(el);
 
-      requestAnimationFrame(()=>requestAnimationFrame(placeFocus));
+      applyElevations(st, el);
+      placePanel(st, el);
       nextBtn.focus();
     }
 
@@ -1030,16 +997,13 @@ footer.mk-mini a{color:inherit;text-decoration:underline;text-underline-offset:2
       try{ gtag('event','tutorial_end',{completed:(tourIndex===steps.length-1), rev:VERSION}); }catch(_){}
       tourActive=false;
       if(maskEl) maskEl.style.display='none';
-      if(focusEl) focusEl.style.display='none';
       if(panelEl) panelEl.style.display='none';
-      // document.body.style.overflow=''; // ←不要（r82）
       clearElevations();
       try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){}
     }
 
     const tourBtn=$('startTour');
     if(tourBtn) tourBtn.addEventListener('click', ()=>startTour(0));
-
     try{
       if(!localStorage.getItem(TOUR_KEY) && tourBtn){
         tourBtn.title='初めての方はここからチュートリアルを開始できます';
