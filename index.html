@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- internal version: r85
-  反映内容（ユーザー要望）
-  - チュートリアル②：結果文章（#result）にパネルが被らないよう回避対象に追加＋結果更新時に自動再配置
-  - ④：グラフを明るくする処理（mk-tour-bright-graph）を削除（CSS/JS/step設定すべて撤去）
-  - STEP7文言を指定文に変更
-  - 「解説」ボタン：スマホ時は「変動PL縦.png」、PCは従来通り「変動PL.png」を開く
+<!-- internal version: r86
+  修正内容
+  - チュートリアル④（STEP6/7）：パネルが「答え合わせ」(#checkBtn)に被る問題を修正
+    * ④の基準要素を #checkBtn に変更
+    * panelDock を "top" にしてボタンの上側に表示
+  - チュートリアルの遷移処理：onEnter→DOM反映→scrollIntoView の順に変更（④の要素生成後に確実にスクロール）
 -->
 <html lang="ja">
 <head>
@@ -262,7 +262,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r85</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r86</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -270,7 +270,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
 <script>
 'use strict';
 (function(){
-  const VERSION='r85';
+  const VERSION='r86';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -757,7 +757,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       layout();
     })();
 
-    /* ===================== チュートリアル（r85） ===================== */
+    /* ===================== チュートリアル（r86） ===================== */
     const TOUR_KEY='mkvpl_tour_dismissed_v5';
     window.__mk_tour = window.__mk_tour || {
       lastPlayedAt: 0,
@@ -793,8 +793,8 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         body:'初期値のまま<b>「黒字かどうか確認」</b>を押してみてください。（ここでは数値は触らずにOKです）',
         extraElevate:['#cardGraph','#cv','#play','#result'],
         pulse:['#play'],
-        panelDock:'top',                 /* まず上側に寄せる */
-        avoidSel:['#play','#cv','#result'],/* 結果文に被らない */
+        panelDock:'top',
+        avoidSel:['#play','#cv','#result'],
         stickyGraph:true,
         maskOpacity:0.52,
         onEnter(){ markBaseline(); window.__mk_tour.stepEnteredAt = Date.now(); },
@@ -805,8 +805,6 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
           return {ok:false,msg:'赤字が確認できていません（念のためリセットして再度押してください）。'};
         }
       },
-
-      /* ===== ③：3つのミニミッション（STEP3〜5は入るたびリセット） ===== */
       {
         sel: '#paramSales',
         title:'③-1 数値を動かしてみましょう：売上高',
@@ -886,15 +884,15 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         }
       },
 
-      /* ===== ④：チャレンジモード ===== */
+      /* ===== ④：ここを修正（#checkBtn基準 + パネルは上側） ===== */
       {
-        sel:'#cardCtrl',
+        sel:'#checkBtn',
         title:'④ チャレンジ：固定費→限界利益率→売上で逆算',
         body:'「必要売上高を考えてみましょう」にチェックを入れ、<br>①固定費 → ②限界利益率 → ③売上 の順に入力し、最後に<b>「答え合わせ」</b>を押してください。',
         extraElevate:['#cardCtrl','#challengeToggle','#challengeBox','#paramFixed','#paramCMR','#paramSales','#checkBtn','#cardGraph','#cv','#play'],
         pulse:['#challengeToggle','#checkBtn'],
-        panelDock:'auto',
-        avoidSel:['#challengeToggle','#checkBtn','#cv','#play','#paramFixed','#paramCMR','#paramSales','#result'],
+        panelDock:'top',
+        avoidSel:['#cv','#play','#result','#challengeToggle','#paramFixed','#paramCMR','#paramSales'],
         stickyGraph:true,
         maskOpacity:0.52,
         onEnter(){
@@ -908,7 +906,6 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         validate(){ return {ok:true}; }
       },
 
-      /* ===== STEP7：文言変更 ===== */
       {
         sel:'#startTour',
         title:'完了',
@@ -1050,7 +1047,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       window.addEventListener('scroll', ()=> placePanel(), { passive:true });
       window.addEventListener('orientationchange', ()=> setTimeout(placePanel, 120));
 
-      // ★結果（#result）が更新されたらパネルを自動再配置（②の被り対策）
+      // 結果（#result）が更新されたらパネルを自動再配置（②の被り対策）
       if(resultEl){
         try{
           const mo = new MutationObserver(()=>{
@@ -1177,8 +1174,6 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       if(!step) return;
 
       applyStickyGraph(step);
-      applyElevate(step);
-      applyPulse(step);
 
       stepEl.textContent = `STEP ${idx+1} / ${steps.length}`;
       titleEl.textContent = step.title;
@@ -1187,12 +1182,17 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       nextBtn.textContent = (idx===steps.length-1) ? '完了' : '次へ';
       msgEl.style.display='none';
 
-      const target = qs(step.sel);
-      await stableScrollIntoView(target);
-
+      // ★順序変更：onEnter → DOM反映 → ターゲット取得 → scrollIntoView
       if(typeof step.onEnter === 'function'){
         try{ step.onEnter(); }catch(e){ console.warn('[tour] onEnter error', e); }
       }
+      await new Promise(r=>requestAnimationFrame(()=>r())); // DOM反映待ち
+
+      applyElevate(step);
+      applyPulse(step);
+
+      const target = qs(step.sel);
+      await stableScrollIntoView(target);
 
       requestAnimationFrame(()=>{ requestAnimationFrame(placePanel); });
     }
@@ -1215,7 +1215,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       clearElevate();
       document.body.classList.remove('mk-tour-sticky-graph');
 
-      // 完了時に「必要売上高を考えてみましょう」をOFF（要望維持）
+      // 完了時に「必要売上高を考えてみましょう」をOFF
       const c = document.getElementById('challengeToggle');
       if(c && c.checked){
         c.checked = false;
