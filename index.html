@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<!-- internal version: r84
-  修正点（ユーザー要望反映）
-  - チュートリアル文（パネル）がスライダー／押すべきボタンに被らないよう、パネル配置ロジックを「自動最適化（回避対象を複数指定可）」に変更
-  - STEP7の文章を“前バージョン相当”に戻す（完了案内＋通常モードへ戻る旨）
-  - STEP3〜5：次STEPへ進むたびに数値をリセット（各STEP onEnterでreset）
-  - STEP6：グラフ部分を明るく（マスクを薄く＋キャンバスを軽く明るく）
-  - 既存改善（白枠撤去／スクロール可／操作阻害しない／④でグラフ視認）維持
+<!-- internal version: r85
+  反映内容（ユーザー要望）
+  - チュートリアル②：結果文章（#result）にパネルが被らないよう回避対象に追加＋結果更新時に自動再配置
+  - ④：グラフを明るくする処理（mk-tour-bright-graph）を削除（CSS/JS/step設定すべて撤去）
+  - STEP7文言を指定文に変更
+  - 「解説」ボタン：スマホ時は「変動PL縦.png」、PCは従来通り「変動PL.png」を開く
 -->
 <html lang="ja">
 <head>
@@ -117,7 +116,6 @@ footer.mk-mini a{
 }
 
 /* ===== チュートリアル（オーバーレイ/パネル） ===== */
-/* ※「白い枠」は撤去（mk-tour-focus は未使用） */
 .mk-tour-mask{
   position:fixed;inset:0;
   background:rgba(15,23,42,.52);
@@ -173,10 +171,6 @@ body.mk-tour-sticky-graph #cardGraph{
 }
 body.mk-tour-sticky-graph #cardGraph .note-top{display:none}
 body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
-
-/* STEP6：グラフを明るく（動きが見えるように） */
-body.mk-tour-bright-graph .mk-tour-mask{ background:rgba(15,23,42,.18) !important; }
-body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.03); }
 </style>
 </head>
 
@@ -268,7 +262,7 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r84</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r85</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -276,7 +270,7 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
 <script>
 'use strict';
 (function(){
-  const VERSION='r84';
+  const VERSION='r85';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -310,14 +304,19 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
     const IS_IOS_MOBILE = /iPhone|iPod/i.test(navigator.userAgent)
        || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1 && window.innerWidth<820);
 
+    const IS_MOBILE = window.matchMedia && window.matchMedia('(max-width: 820px)').matches
+      ? true
+      : (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth<820);
+
     const cv=$('cv'); if(!cv){ console.error(`[${VERSION}] canvas#cv が見つかりません。`); return; }
     const ctx=cv.getContext && cv.getContext('2d'); if(!ctx){ console.error(`[${VERSION}] 2Dコンテキスト取得不可`); return; }
 
-    // 「解説」ボタン：画像を別タブで開く
+    // 「解説」ボタン：スマホは縦画像、PCは従来通り
     const explainBtn = $('openExplain');
     if(explainBtn){
       explainBtn.addEventListener('click', ()=>{
-        const url = encodeURI('変動PL.png');
+        const file = IS_MOBILE ? '変動PL縦.png' : '変動PL.png';
+        const url = encodeURI(file);
         window.open(url, '_blank', 'noopener');
       });
     }
@@ -656,6 +655,7 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
             if(p>0){ resultEl.classList.remove('ng'); resultEl.textContent=`黒字達成！ 経常利益 ≈ ${jpy(p)}`; }
             else if(p<0){ const c=calc(); resultEl.classList.add('ng'); resultEl.textContent=`赤字（経常損失）… 損失 ≈ ${jpy(-p)} ／ あと ≈ ${jpy(Math.max(0, c.fixed - c.cm))} の限界利益が必要`; }
             else{ resultEl.classList.remove('ng'); resultEl.textContent=`損益分岐点！ ±0（トントン）`; }
+
             if(pendingCheck && pendingVals){
               targetShown.textContent = pendingVals.targetText;
               diffMsgEl.innerHTML      = pendingVals.cls ? `<span class="${pendingVals.cls}">${pendingVals.msg}</span>` : pendingVals.msg;
@@ -757,8 +757,8 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       layout();
     })();
 
-    /* ===================== チュートリアル（r84） ===================== */
-    const TOUR_KEY='mkvpl_tour_dismissed_v4';
+    /* ===================== チュートリアル（r85） ===================== */
+    const TOUR_KEY='mkvpl_tour_dismissed_v5';
     window.__mk_tour = window.__mk_tour || {
       lastPlayedAt: 0,
       lastPlayed: null,
@@ -785,7 +785,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         avoidSel:['.title-row'],
         stickyGraph:false,
         maskOpacity:0.52,
-        brightGraph:false,
         onEnter(){ setDefaults(); resetTourFlags(); }
       },
       {
@@ -794,11 +793,10 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         body:'初期値のまま<b>「黒字かどうか確認」</b>を押してみてください。（ここでは数値は触らずにOKです）',
         extraElevate:['#cardGraph','#cv','#play','#result'],
         pulse:['#play'],
-        panelDock:'auto',
-        avoidSel:['#play','#cv'],
+        panelDock:'top',                 /* まず上側に寄せる */
+        avoidSel:['#play','#cv','#result'],/* 結果文に被らない */
         stickyGraph:true,
         maskOpacity:0.52,
-        brightGraph:false,
         onEnter(){ markBaseline(); window.__mk_tour.stepEnteredAt = Date.now(); },
         validate(){
           const t = window.__mk_tour;
@@ -816,12 +814,10 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         extraElevate:['#cardGraph','#cv','#paramSales','#salesRange','#sales','#play','#result'],
         pulse:['#play'],
         panelDock:'auto',
-        avoidSel:['#paramSales','#salesRange','#sales','#play','#cv'],
+        avoidSel:['#paramSales','#salesRange','#sales','#play','#cv','#result'],
         stickyGraph:true,
         maskOpacity:0.52,
-        brightGraph:false,
         onEnter(){
-          // STEP3開始時に必ず初期化（STEP2→3 の「次へ」でリセット）
           setDefaults();
           resetTourFlags();
           markBaseline();
@@ -844,12 +840,10 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         extraElevate:['#cardGraph','#cv','#paramCMR','#cmrRange','#cmr','#play','#result'],
         pulse:['#play'],
         panelDock:'auto',
-        avoidSel:['#paramCMR','#cmrRange','#cmr','#play','#cv'],
+        avoidSel:['#paramCMR','#cmrRange','#cmr','#play','#cv','#result'],
         stickyGraph:true,
         maskOpacity:0.52,
-        brightGraph:false,
         onEnter(){
-          // STEP4開始時に必ず初期化（STEP3→4 の「次へ」でリセット）
           setDefaults();
           resetTourFlags();
           markBaseline();
@@ -872,12 +866,10 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         extraElevate:['#cardGraph','#cv','#paramFixed','#fixedRange','#fixed','#play','#result'],
         pulse:['#play'],
         panelDock:'auto',
-        avoidSel:['#paramFixed','#fixedRange','#fixed','#play','#cv'],
+        avoidSel:['#paramFixed','#fixedRange','#fixed','#play','#cv','#result'],
         stickyGraph:true,
         maskOpacity:0.52,
-        brightGraph:false,
         onEnter(){
-          // STEP5開始時に必ず初期化（STEP4→5 の「次へ」でリセット）
           setDefaults();
           resetTourFlags();
           markBaseline();
@@ -894,18 +886,17 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         }
       },
 
-      /* ===== ④：チャレンジモード（STEP6：グラフを明るく） ===== */
+      /* ===== ④：チャレンジモード ===== */
       {
         sel:'#cardCtrl',
         title:'④ チャレンジ：固定費→限界利益率→売上で逆算',
-        body:'「必要売上高を考えてみましょう」にチェックを入れ、<br>①固定費 → ②限界利益率 → ③売上 の順に入力し、最後に<b>「答え合わせ」</b>を押してください。<br><small>※このSTEPではグラフを明るくして、動きが見えやすい状態にしています。</small>',
+        body:'「必要売上高を考えてみましょう」にチェックを入れ、<br>①固定費 → ②限界利益率 → ③売上 の順に入力し、最後に<b>「答え合わせ」</b>を押してください。',
         extraElevate:['#cardCtrl','#challengeToggle','#challengeBox','#paramFixed','#paramCMR','#paramSales','#checkBtn','#cardGraph','#cv','#play'],
         pulse:['#challengeToggle','#checkBtn'],
         panelDock:'auto',
-        avoidSel:['#challengeToggle','#checkBtn','#cv','#play','#paramFixed','#paramCMR','#paramSales'],
+        avoidSel:['#challengeToggle','#checkBtn','#cv','#play','#paramFixed','#paramCMR','#paramSales','#result'],
         stickyGraph:true,
-        maskOpacity:0.18,
-        brightGraph:true,
+        maskOpacity:0.52,
         onEnter(){
           const t=$('challengeToggle');
           if(t && !t.checked){
@@ -917,18 +908,17 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         validate(){ return {ok:true}; }
       },
 
-      /* ===== STEP7：文章を前バージョン相当に戻す ===== */
+      /* ===== STEP7：文言変更 ===== */
       {
         sel:'#startTour',
         title:'完了',
-        body:'チュートリアルは完了です。<br>必要に応じて、いつでも<b>「チュートリアル」</b>ボタンからやり直せます。<br><small>※完了時には「必要売上高を考えてみましょう」のチェックを外し、通常モードに戻ります。</small>',
+        body:'このように、黒字を出すには売上↑/限界利益率↑/固定費↓の方向しかありません。<br>これでチュートリアルは完了です。必要に応じて、いつでも<b>「チュートリアル」</b>ボタンからやり直せます。<br><small>※完了時には「必要売上高を考えてみましょう」のチェックを外し、通常モードに戻ります。</small>',
         extraElevate:['#startTour'],
         pulse:[],
         panelDock:'auto',
         avoidSel:['#startTour'],
         stickyGraph:false,
-        maskOpacity:0.52,
-        brightGraph:false
+        maskOpacity:0.52
       }
     ];
 
@@ -992,9 +982,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
     function applyStickyGraph(step){
       const want = !!step.stickyGraph && window.innerWidth < 820;
       document.body.classList.toggle('mk-tour-sticky-graph', want);
-    }
-    function applyBrightGraph(step){
-      document.body.classList.toggle('mk-tour-bright-graph', !!step.brightGraph);
     }
 
     function ensureEls(){
@@ -1062,6 +1049,18 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       window.addEventListener('resize', ()=> placePanel(), { passive:true });
       window.addEventListener('scroll', ()=> placePanel(), { passive:true });
       window.addEventListener('orientationchange', ()=> setTimeout(placePanel, 120));
+
+      // ★結果（#result）が更新されたらパネルを自動再配置（②の被り対策）
+      if(resultEl){
+        try{
+          const mo = new MutationObserver(()=>{
+            if(panelEl && panelEl.style.display!=='none'){
+              requestAnimationFrame(()=>placePanel());
+            }
+          });
+          mo.observe(resultEl, {childList:true, characterData:true, subtree:true});
+        }catch(e){}
+      }
     }
 
     function rectInVisualViewport(el){
@@ -1091,9 +1090,7 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       if(!sels) sels = [];
       if(typeof sels === 'string') sels = [sels];
       if(!Array.isArray(sels)) sels = [];
-      // 念のため：常にターゲット自身も回避対象にする（被り防止）
       if(step.sel && typeof step.sel === 'string') sels = [step.sel, ...sels];
-      // 重複排除
       return [...new Set(sels)];
     }
 
@@ -1101,7 +1098,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       const step = steps[tourIndex];
       if(!step || !panelEl) return;
 
-      // STEPごとのマスク濃度
       const op = (typeof step.maskOpacity === 'number') ? step.maskOpacity : 0.52;
       if(maskEl) maskEl.style.background = `rgba(15,23,42,${op})`;
 
@@ -1121,7 +1117,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       const minY = vvOffsetY() + 8;
       const maxY = vvOffsetY() + vvHeight() - panelH - 8;
 
-      // 回避対象（複数）を取得
       const avoidSels = resolveAvoidSelectors(step);
       const avoidRects = [];
       for(const s of avoidSels){
@@ -1142,13 +1137,11 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
         for(const ar of avoidRects){
           score += overlapArea(panel, ar);
         }
-        // 画面端に近すぎると読みにくいので軽くペナルティ
         score += Math.max(0, (minY - py)) * 50;
         score += Math.max(0, (py - maxY)) * 50;
         return score;
       }
 
-      // 候補位置を作る（auto最適化）
       const belowY = r.y + r.h + margin;
       const aboveY = r.y - margin - panelH;
       const topY   = vvOffsetY() + 10;
@@ -1157,14 +1150,13 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       const candidates = [];
       const dock = step.panelDock || 'auto';
       if(dock === 'top'){
-        candidates.push(topY, aboveY, belowY, botY);
+        candidates.push(aboveY, topY, belowY, botY);
       }else if(dock === 'bottom'){
         candidates.push(belowY, botY, aboveY, topY);
       }else{
         candidates.push(belowY, aboveY, topY, botY);
       }
 
-      // clampして評価、最小スコアの位置を採用
       let bestY = null, bestScore = Infinity;
       for(const c of candidates){
         const y = Math.min(Math.max(c, minY), maxY);
@@ -1185,7 +1177,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       if(!step) return;
 
       applyStickyGraph(step);
-      applyBrightGraph(step);
       applyElevate(step);
       applyPulse(step);
 
@@ -1223,7 +1214,6 @@ body.mk-tour-bright-graph #cardGraph canvas{ filter:brightness(1.10) contrast(1.
       clearPulse();
       clearElevate();
       document.body.classList.remove('mk-tour-sticky-graph');
-      document.body.classList.remove('mk-tour-bright-graph');
 
       // 完了時に「必要売上高を考えてみましょう」をOFF（要望維持）
       const c = document.getElementById('challengeToggle');
