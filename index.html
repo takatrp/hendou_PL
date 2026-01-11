@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- internal version: r86
+<!-- internal version: r87
   修正内容
-  - チュートリアル④（STEP6/7）：パネルが「答え合わせ」(#checkBtn)に被る問題を修正
-    * ④の基準要素を #checkBtn に変更
-    * panelDock を "top" にしてボタンの上側に表示
-  - チュートリアルの遷移処理：onEnter→DOM反映→scrollIntoView の順に変更（④の要素生成後に確実にスクロール）
+  - 限界利益率（CMR, %）の入力欄で小数点が落ちる問題を修正
+    * "52." のような入力途中の末尾ドットを維持し、続けて "52.1" を確実に入力できるようにする
+    * 端末差（, や ・ 等）も小数点として扱い '.' に正規化
 -->
 <html lang="ja">
 <head>
@@ -262,7 +261,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r86</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r87</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -270,7 +269,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
 <script>
 'use strict';
 (function(){
-  const VERSION='r86';
+  const VERSION='r87';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -362,34 +361,83 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         if(count>=digitsLeft){ pos=i+1; break; }
       }
       if(digitsLeft===extractDigits(before).length) pos=formatted.length;
-      el.value = formatted; try{ el.setSelectionRange(pos,pos); }catch(_){}
+      el.value = formatted; try{ el.setSelectionRange(pos,pos); }catch(_){ }
       return n;
     }
+
+    // === r87: CMR入力の小数点維持・正規化強化 ===
     function cleanPercentString(s){
-      s=normalizeDigits(String(s??'')); s=s.replace(/[，、｡。．]/g,'.');
-      let out='',seen=false;
-      for(const ch of s){ if(/\d/.test(ch)) out+=ch; else if(ch==='.'&&!seen){ out+='.'; seen=true; } }
-      if(seen){ const [a,b='']=out.split('.'); out=a+'.'+b.slice(0,1); }
+      s = normalizeDigits(String(s ?? ''));
+      // 小数点として扱い得る記号を '.' に寄せる（端末/IME差の吸収）
+      s = s.replace(/[，、,｡。．·・･⋅∙٫٬]/g, '.');
+
+      let out = '';
+      let seenDot = false;
+      for(const ch of s){
+        if(/\d/.test(ch)){
+          out += ch;
+        }else if(ch === '.' && !seenDot){
+          out += '.';
+          seenDot = true;
+        }
+      }
+
+      // 先頭が '.' の場合は '0.' に補正
+      if(out.startsWith('.')) out = '0' + out;
+
+      // 小数は1桁まで。ただし "52." のような末尾ドットは維持
+      if(seenDot){
+        const [a, b=''] = out.split('.');
+        out = a + '.' + b.slice(0, 1); // bが空なら末尾'.'のまま
+      }
       return out;
     }
+
     function formatPercentInput(el){
-      if(composing.get(el)) return Number(el.value||0);
-      const before=String(el.value||''); const sel=el.selectionEnd ?? before.length;
-      const allowedLeft=cleanPercentString(before.slice(0,sel)).length;
-      let cleaned=cleanPercentString(before);
-      let num=Number(cleaned); if(!isFinite(num)) num=0; num=Math.min(100,Math.max(0,num));
-      if(cleaned.includes('.')){
-        const parts=String(num).split('.');
-        const decimals=Math.min(1,(cleanPercentString(before).split('.')[1]||'').length);
-        cleaned=parts[0]+(decimals?'.'+(parts[1]||'0').slice(0,decimals):'');
-      }else{
-        cleaned=String(Math.trunc(num));
+      if(composing.get(el)) return Number.parseFloat(el.value) || 0;
+
+      const before = String(el.value || '');
+      const sel = el.selectionEnd ?? before.length;
+
+      // カーソル左側の正規化済み長さ
+      const leftNorm = cleanPercentString(before.slice(0, sel));
+      const cleaned = cleanPercentString(before);
+
+      // 空は空のまま
+      if(cleaned === ''){
+        el.value = '';
+        return 0;
       }
-      el.value=cleaned;
-      let pos=0,cnt=0; for(let i=0;i<cleaned.length;i++){ if(/\d|\./.test(cleaned[i])) cnt++; if(cnt>=allowedLeft){ pos=i+1; break; } }
-      if(allowedLeft===cleanPercentString(before).length) pos=cleaned.length;
-      try{ el.setSelectionRange(pos,pos);}catch(_){}
-      return Number(cleaned||0);
+
+      const endsWithDot = cleaned.endsWith('.');
+
+      // 数値化は末尾ドットを除いて行う
+      const numBase = Number.parseFloat(endsWithDot ? cleaned.slice(0, -1) : cleaned);
+      let num = Number.isFinite(numBase) ? numBase : 0;
+      num = Math.min(100, Math.max(0, num));
+
+      let out;
+      if(endsWithDot){
+        // 入力途中の "52." を維持
+        out = String(Math.trunc(num)) + '.';
+      }else if(cleaned.includes('.')){
+        if(num >= 100){
+          out = '100';
+        }else{
+          const dec = (cleaned.split('.')[1] || '').slice(0, 1); // 1桁
+          out = String(Math.trunc(num)) + '.' + dec;
+        }
+      }else{
+        out = String(Math.trunc(num));
+      }
+
+      el.value = out;
+
+      // カーソル復元
+      const pos = Math.min(out.length, leftNorm.length);
+      try{ el.setSelectionRange(pos, pos); }catch(_){ }
+
+      return Number.parseFloat(out) || 0;
     }
 
     /* ===== 計算（permilleで丸め） ===== */
@@ -757,7 +805,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       layout();
     })();
 
-    /* ===================== チュートリアル（r86） ===================== */
+    /* ===================== チュートリアル（r86踏襲） ===================== */
     const TOUR_KEY='mkvpl_tour_dismissed_v5';
     window.__mk_tour = window.__mk_tour || {
       lastPlayedAt: 0,
@@ -883,8 +931,6 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
           return {ok:false,msg:'まだ黒字になっていません。固定費をもう少し下げて、再度「黒字かどうか確認」を押してください。'};
         }
       },
-
-      /* ===== ④：ここを修正（#checkBtn基準 + パネルは上側） ===== */
       {
         sel:'#checkBtn',
         title:'④ チャレンジ：固定費→限界利益率→売上で逆算',
@@ -905,7 +951,6 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         },
         validate(){ return {ok:true}; }
       },
-
       {
         sel:'#startTour',
         title:'完了',
@@ -1047,7 +1092,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       window.addEventListener('scroll', ()=> placePanel(), { passive:true });
       window.addEventListener('orientationchange', ()=> setTimeout(placePanel, 120));
 
-      // 結果（#result）が更新されたらパネルを自動再配置（②の被り対策）
+      // 結果（#result）が更新されたらパネルを自動再配置
       if(resultEl){
         try{
           const mo = new MutationObserver(()=>{
@@ -1131,9 +1176,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       function scoreFor(py){
         const panel = { left:px, top:py, right:px+panelW, bottom:py+panelH };
         let score = 0;
-        for(const ar of avoidRects){
-          score += overlapArea(panel, ar);
-        }
+        for(const ar of avoidRects){ score += overlapArea(panel, ar); }
         score += Math.max(0, (minY - py)) * 50;
         score += Math.max(0, (py - maxY)) * 50;
         return score;
@@ -1146,24 +1189,17 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
 
       const candidates = [];
       const dock = step.panelDock || 'auto';
-      if(dock === 'top'){
-        candidates.push(aboveY, topY, belowY, botY);
-      }else if(dock === 'bottom'){
-        candidates.push(belowY, botY, aboveY, topY);
-      }else{
-        candidates.push(belowY, aboveY, topY, botY);
-      }
+      if(dock === 'top')      candidates.push(aboveY, topY, belowY, botY);
+      else if(dock === 'bottom') candidates.push(belowY, botY, aboveY, topY);
+      else                   candidates.push(belowY, aboveY, topY, botY);
 
       let bestY = null, bestScore = Infinity;
       for(const c of candidates){
         const y = Math.min(Math.max(c, minY), maxY);
         const sc = scoreFor(y);
-        if(sc < bestScore){
-          bestScore = sc;
-          bestY = y;
-        }
+        if(sc < bestScore){ bestScore = sc; bestY = y; }
       }
-      let py = (bestY==null) ? Math.min(Math.max(topY, minY), maxY) : bestY;
+      const py = (bestY==null) ? Math.min(Math.max(topY, minY), maxY) : bestY;
 
       panelEl.style.left = px + 'px';
       panelEl.style.top  = py + 'px';
@@ -1182,11 +1218,10 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       nextBtn.textContent = (idx===steps.length-1) ? '完了' : '次へ';
       msgEl.style.display='none';
 
-      // ★順序変更：onEnter → DOM反映 → ターゲット取得 → scrollIntoView
       if(typeof step.onEnter === 'function'){
         try{ step.onEnter(); }catch(e){ console.warn('[tour] onEnter error', e); }
       }
-      await new Promise(r=>requestAnimationFrame(()=>r())); // DOM反映待ち
+      await new Promise(r=>requestAnimationFrame(()=>r()));
 
       applyElevate(step);
       applyPulse(step);
@@ -1198,7 +1233,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
     }
 
     async function startTour(idx=0){
-      try{ gtag('event','tutorial_start',{step:idx+1}); }catch(_){}
+      try{ gtag('event','tutorial_start',{step:idx+1}); }catch(_){ }
       ensureEls();
       tourIndex = idx;
       maskEl.style.display='block';
@@ -1208,7 +1243,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
     }
 
     function endTour(){
-      try{ gtag('event','tutorial_end',{completed: (tourIndex===steps.length-1)}); }catch(_){}
+      try{ gtag('event','tutorial_end',{completed: (tourIndex===steps.length-1)}); }catch(_){ }
       if(maskEl) maskEl.style.display='none';
       if(panelEl) panelEl.style.display='none';
       clearPulse();
@@ -1222,7 +1257,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         c.dispatchEvent(new Event('change', {bubbles:true}));
       }
 
-      try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){}
+      try{ localStorage.setItem(TOUR_KEY,'1'); }catch(_){ }
     }
 
     const tourBtn = document.getElementById('startTour');
@@ -1232,7 +1267,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       if(!localStorage.getItem(TOUR_KEY)){
         tourBtn.title = '初めての方はここからチュートリアルを開始できます';
       }
-    }catch(_){}
+    }catch(_){ }
   });
 })();
 </script>
