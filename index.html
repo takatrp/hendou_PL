@@ -1,9 +1,14 @@
 <!DOCTYPE html>
-<!-- internal version: r87
+<!-- internal version: r90
   修正内容
-  - 限界利益率（CMR, %）の入力欄で小数点が落ちる問題を修正
-    * "52." のような入力途中の末尾ドットを維持し、続けて "52.1" を確実に入力できるようにする
-    * 端末差（, や ・ 等）も小数点として扱い '.' に正規化
+  - タイトル部分に「動画」「比較」ボタンを追加し、最低限の導線を配置
+  - タイトル部のa要素ボタン（比較）とbutton要素ボタンの文字サイズ・高さを統一
+  - 「動画」ボタンは下部の補助教材欄を開くだけにし、初期表示ではキャンバス領域を圧迫しない
+  - 「比較」ボタンは制度PL×変動PL比較ページを別タブで開く
+  - 添付動画「制度変動違い.mp4」と、制度PL×変動PL比較ページへの導線を追加
+  - スマホ表示でボールのキャンバス領域を押し下げないよう、動画は折りたたみ式の補助欄に格納
+  - 既存のチュートリアル、解説、入力・描画ロジックは維持
+  - r87: 限界利益率（CMR, %）の入力欄で小数点が落ちる問題を修正
 -->
 <html lang="ja">
 <head>
@@ -42,19 +47,23 @@ html,body{
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:12px;min-width:0}
 
 /* タイトル行（ロゴ＋見出し＋アクション） */
-.title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.title-row{display:flex;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap}
 .title-logo{height:48px;width:auto;display:block}
-.logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0}
-h1{font-size:18px;margin:0}
-.title-actions{margin-left:auto;display:flex;gap:8px}
+.logo-link{display:inline-flex;align-items:center;text-decoration:none;line-height:0;flex:0 0 auto}
+h1{font-size:18px;margin:0;min-width:0}
+.title-actions{margin-left:auto;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
 .btn{
   appearance:none;border:1px solid var(--line-dark);background:#fff;border-radius:12px;
-  padding:6px 10px;font-weight:800;cursor:pointer;color:#0f172a
+  padding:6px 10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;color:#0f172a;
+  min-height:32px;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1.2;text-decoration:none;white-space:nowrap
 }
 .btn:hover{border-color:#94a3b8}
 .btn:active{transform:translateY(1px)}
 .btn.accent{color:#fff;background:var(--brand);border-color:var(--brand);box-shadow:0 10px 22px rgba(87,136,153,.28)}
 .btn.accent:active{background:var(--brand-600)}
+.btn.mini-accent{color:var(--brand);border-color:#d6e7ee;background:#eef7fa}
+.btn.mini-accent:hover{border-color:var(--brand)}
 
 .note-top{background:#eef7fa;border:1px solid #d6e7ee;color:#0b3c4a;padding:8px 10px;border-radius:12px;margin:6px 0 10px;font-size:13px;line-height:1.5}
 canvas{display:block;height:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin:0 auto;max-width:calc(100vw - 32px)}
@@ -68,6 +77,92 @@ button{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight
 .secondary{background:#fff;color:#0f172a;border:1px solid var(--line-dark)}
 .secondary:hover{border-color:#94a3b8}
 .result{font-size:16px;font-weight:800;margin-top:6px}.result.ng{color:var(--danger)}
+
+/* ===== 補助教材：動画・制度PL比較リンク（閉じている限りキャンバス領域を圧迫しない） ===== */
+.learn-more{
+  margin-top:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fbfdfe;
+  overflow:hidden;
+}
+.learn-more summary{
+  list-style:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 10px;
+  cursor:pointer;
+  user-select:none;
+  font-size:13px;
+  font-weight:900;
+  color:#0f172a;
+}
+.learn-more summary::-webkit-details-marker{display:none}
+.learn-more summary::after{
+  content:'＋';
+  flex:0 0 auto;
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  background:var(--brand);
+  line-height:1;
+}
+.learn-more[open] summary::after{content:'－'}
+.learn-more summary .learn-main{display:flex;align-items:center;gap:8px;min-width:0}
+.learn-more summary .learn-label{white-space:nowrap}
+.learn-more summary .learn-sub{
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.learn-more-body{
+  border-top:1px solid var(--line);
+  padding:10px;
+  display:grid;
+  gap:10px;
+}
+.learn-video-wrap{
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+  background:#0f172a;
+}
+.learn-video-wrap video{
+  display:block;
+  width:100%;
+  max-height:52vh;
+  background:#0f172a;
+}
+.learn-links{display:grid;gap:8px}
+.learn-link{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:8px 10px;
+  border-radius:12px;
+  text-decoration:none;
+  font-weight:900;
+  border:1px solid var(--brand);
+  color:#fff;
+  background:var(--brand);
+  box-shadow:0 10px 22px rgba(87,136,153,.22);
+}
+.learn-link:hover{background:var(--brand-600);border-color:var(--brand-600)}
+.learn-caption{
+  color:#475569;
+  font-size:12px;
+  line-height:1.55;
+}
+
 .controls{display:grid;gap:8px}
 label.f{display:block;background:#fafafa;border:1px solid var(--line);border-radius:12px;padding:6px 8px}
 .f .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -107,11 +202,21 @@ footer.mk-mini a{
   text-underline-offset:2px;
 }
 
+@media (max-width:560px){
+  .title-row{gap:8px}
+  .title-logo{height:42px}
+  h1{font-size:16px;flex:1 1 calc(100% - 54px)}
+  .title-actions{width:100%;margin-left:0;display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:6px}
+  .btn{padding:6px 6px;border-radius:10px;font-size:12px;min-height:30px}
+}
+
 @media (max-width:480px){
-  h1{font-size:17px}
   .card{padding:10px}
   .note-top{font-size:12px}
   input[type="text"],input[type="number"]{width:86px;padding:7px}
+  .learn-more summary{padding:7px 8px;font-size:12px}
+  .learn-more summary .learn-sub{font-size:11px}
+  .learn-video-wrap video{max-height:46vh}
 }
 
 /* ===== チュートリアル（オーバーレイ/パネル） ===== */
@@ -183,8 +288,10 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
             <img src="ロゴ.jpg" alt="税理士法人松本会計事務所 ロゴ" class="title-logo" />
           </a>
           <h1>ボールで学ぶ変動損益計算書</h1>
-          <div class="title-actions">
+          <div class="title-actions" aria-label="補助導線">
             <button id="openExplain" type="button" class="btn accent" aria-label="解説（別タブで開く）">解説</button>
+            <button id="openMovie" type="button" class="btn mini-accent" aria-label="動画を開く">動画</button>
+            <a id="openCompare" class="btn mini-accent" href="https://takatrp.github.io/seido-hendou/" target="_blank" rel="noopener" aria-label="制度PLとの違いを別タブで開く">比較</a>
             <button id="startTour" type="button" class="btn" aria-label="チュートリアル開始">チュートリアル</button>
           </div>
         </div>
@@ -202,6 +309,31 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
           <button id="reset" class="secondary" type="button">リセット</button>
         </div>
         <div id="result" class="result" aria-live="polite"></div>
+
+        <details class="learn-more" id="learnMore">
+          <summary>
+            <span class="learn-main">
+              <span class="learn-label">理解を深める</span>
+              <span class="learn-sub">動画・制度PLとの違い</span>
+            </span>
+          </summary>
+          <div class="learn-more-body">
+            <div class="learn-video-wrap">
+              <video id="explainMovie" controls preload="metadata" playsinline>
+                <source src="制度変動違い.mp4" type="video/mp4">
+                お使いのブラウザでは動画を再生できません。
+              </video>
+            </div>
+            <div class="learn-links">
+              <a class="learn-link" href="https://takatrp.github.io/seido-hendou/" target="_blank" rel="noopener">
+                制度PLとの違いを詳しく見る
+              </a>
+              <div class="learn-caption">
+                まずは上のボールで「限界利益が固定費を超えるか」を体感し、必要に応じて動画と比較ページで制度PLとの見え方の違いを確認してください。
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
 
       <div class="card" id="cardCtrl">
@@ -261,7 +393,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       © <span id="cpy-year">2025</span> <a href="https://www.matsumoto-kaikei.or.jp/" target="_blank" rel="noopener license">税理士法人松本会計事務所</a> ｜ 
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="license noopener">CC BY-NC-SA 4.0</a> ｜ 
       <a href="/tool-portal/terms.html" target="_blank" rel="noopener">利用条件</a> ｜ 
-      <span id="build-rev">r87</span>（<span id="last-updated-date"></span>）
+      <span id="build-rev">r88</span>（<span id="last-updated-date"></span>）
     </footer>
   </div>
 </div>
@@ -269,7 +401,7 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
 <script>
 'use strict';
 (function(){
-  const VERSION='r87';
+  const VERSION='r90';
 
   // 年号 & 最終更新日（YYYY-MM-DD）を自動反映
   (function syncFooterMeta(){
@@ -317,6 +449,27 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
         const file = IS_MOBILE ? '変動PL縦.png' : '変動PL.png';
         const url = encodeURI(file);
         window.open(url, '_blank', 'noopener');
+      });
+    }
+
+    // 補助教材欄：折りたたんだら動画を停止。通常時のキャンバス表示を最優先する。
+    const learnMore = $('learnMore');
+    const explainMovie = $('explainMovie');
+    if(learnMore && explainMovie){
+      learnMore.addEventListener('toggle', ()=>{
+        if(!learnMore.open){
+          try{ explainMovie.pause(); }catch(_){ }
+        }
+      });
+    }
+
+    // タイトル部「動画」ボタン：補助教材欄を開く。初期表示では閉じておき、キャンバス領域は守る。
+    const movieBtn = $('openMovie');
+    if(movieBtn && learnMore){
+      movieBtn.addEventListener('click', ()=>{
+        learnMore.open = true;
+        try{ learnMore.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(_){ }
+        try{ explainMovie && explainMovie.focus({preventScroll:true}); }catch(_){ }
       });
     }
 
@@ -826,8 +979,8 @@ body.mk-tour-sticky-graph #cardGraph canvas{max-height:38vh}
       {
         sel: '.title-row',
         title:'① 概要（まずは「解説」を見てOK）',
-        body:'このツールは「変動損益計算書（CVP）」をボールで直感化します。<br><b>「解説」</b>ボタンを押して概念図を確認してみてください（別タブで開きます）。',
-        extraElevate:['.title-row','#openExplain','#startTour'],
+        body:'このツールは「変動損益計算書（CVP）」をボールで直感化します。<br><b>「解説」</b>で概念図を確認できます。さらに画面下の<b>「理解を深める」</b>を開くと、動画と制度PLとの比較ページを確認できます。',
+        extraElevate:['.title-row','#openExplain','#openMovie','#openCompare','#startTour'],
         pulse:['#openExplain'],
         panelDock:'auto',
         avoidSel:['.title-row'],
